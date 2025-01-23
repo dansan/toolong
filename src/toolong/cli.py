@@ -3,6 +3,7 @@ from __future__ import annotations
 from importlib.metadata import version
 import os
 import sys
+import time
 from typing import IO
 
 import click
@@ -150,4 +151,5 @@ def run(
                                 if line := os.read(sys.stdin.fileno(), 1024 * 64):
                                     temp_file.write(line)
                                 else:
+                                    time.sleep(0.005)  # sleep 5 ms to avoid maxing CPU usage
                                     break
