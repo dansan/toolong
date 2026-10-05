@@ -370,24 +370,45 @@ class LogLines(ScrollView, inherit_bindings=False):
 
         total_size = sum(log_file.size for log_file in self.log_files)
         position = 0
+        time_range = self.time_range
+        single_file = len(self.log_files) == 1
+        progress_verb = "Scanning timestamps in" if single_file else "Merging"
 
         for log_file in self.log_files:
             if not log_file.is_open:
                 continue
             line_breaks = self._line_breaks[log_file]
             append = line_breaks.append
+            # Without a time range: every line, back-filled once the file is read.
             meta: list[tuple[float, int, LogFile]] = []
             append_meta = meta.append
+            # With a time range: lines before the first timestamp get that timestamp.
+            before_first: list[int] = []
+            previous = 0.0
+            append_merge = merge_lines.append
             for timestamps in log_file.scan_timestamps():
                 break_position = 0
 
                 for line_no, break_position, timestamp in timestamps:
-                    append_meta((timestamp, line_no, log_file))
                     append(break_position)
+                    if time_range is None:
+                        append_meta((timestamp, line_no, log_file))
+                        continue
+                    if timestamp:
+                        if not previous and time_range.contains(timestamp):
+                            merge_lines.extend(
+                                (timestamp, number, log_file) for number in before_first
+                            )
+                        previous = timestamp
+                    elif not previous:
+                        before_first.append(line_no)
+                        continue
+                    if time_range.contains(previous):
+                        append_merge((previous, line_no, log_file))
 
                 self.post_message(
                     ScanProgress(
-                        f"Merging {log_file.name} - ESCAPE to cancel",
+                        f"{progress_verb} {log_file.name} - ESCAPE to cancel",
                         (position + break_position) / total_size,
                     )
                 )
@@ -397,25 +418,24 @@ class LogLines(ScrollView, inherit_bindings=False):
                     )
                     return
             append(log_file.size)
-
-            fill_missing_timestamps(meta)
-            if self.time_range is not None:
-                if not any(seconds for seconds, _, _ in meta):
-                    self.notify(
-                        f"No timestamps found in {log_file.name!r}",
-                        title="Time range",
-                        severity="warning",
-                    )
-                time_range = self.time_range
-                meta = [line for line in meta if line[0] and time_range.contains(line[0])]
-            self._merge_lines.extend(meta)
+            if time_range is None:
+                fill_missing_timestamps(meta)
+                merge_lines.extend(meta)
+            elif before_first and not previous:
+                self.notify(
+                    f"No timestamps found in {log_file.name!r}",
+                    title="Time range",
+                    severity="warning",
+                )
 
             position += log_file.size
 
-        merge_lines.sort(key=itemgetter(0, 1))
-        if self.time_range is not None:
+        merge_lines.sort(key=itemgetter(0))
+        if time_range is not None:
+            count = len(merge_lines)
+            in_file = f" in {self.log_file.name}" if single_file else ""
             self.notify(
-                f"{len(merge_lines):,} lines {self.time_range.description}",
+                f"{count:,} {'line' if count == 1 else 'lines'}{in_file} {time_range.description}",
                 title="Time range",
                 severity="information" if merge_lines else "warning",
             )
@@ -466,7 +486,8 @@ class LogLines(ScrollView, inherit_bindings=False):
         except Exception as error:
             self.notify(f"Failed to save {path!r}; {error}", severity="error")
         else:
-            self.notify(f"Saved merged log files to {path!r}")
+            saved = "lines" if len(self.log_files) == 1 else "merged log files"
+            self.notify(f"Saved {saved} to {path!r}")
 
     def get_log_file_from_index(self, index: int) -> tuple[LogFile, int]:
         if self._merge_lines is not None:
