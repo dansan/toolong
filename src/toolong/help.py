@@ -49,8 +49,11 @@ Press `ctrl+f` or `/` to find text. Check *Regex* to find with a regular express
 Check *Fields* to find Lancelog log lines by field.
 A query is one or more `key=value` or `key!=value` terms, and a line matches when all terms match.
 Keys are the data keys after the `|`, plus `level`, `request_id` and `message` from the header.
-Write values that contain spaces in double quotes: `event="sync done"`.
+If the data has a `request_id`, its full value is matched instead of the shortened one in the header.
+Values must match whole: `page=1` doesn't find `page=10`.
+Write values that contain spaces or `=` in double quotes: `event="sync done"`.
 *Case sensitive* applies to values; keys always match exactly.
+Fields beyond the first 10,000 characters of a line are found but not highlighted or shown in the line details.
 
 ### Opening Files
 
