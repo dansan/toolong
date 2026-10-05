@@ -2,7 +2,9 @@ from __future__ import annotations
 from datetime import datetime
 import json
 
+from rich import box
 from rich.json import JSON
+from rich.table import Table
 from rich.text import Text
 
 from textual.app import ComposeResult
@@ -10,6 +12,19 @@ from textual.containers import ScrollableContainer
 
 from textual.widget import Widget
 from textual.widgets import Label, Static
+
+from toolong.lancelog import LancelogRecord, parse_lancelog
+
+
+def fields_table(record: LancelogRecord) -> Table:
+    table = Table(box=box.SIMPLE_HEAD)
+    table.add_column("Field", style="repr.attrib_name", no_wrap=True)
+    table.add_column("Value", overflow="fold")
+    if record.timestamp is not None:
+        table.add_row("timestamp", record.timestamp.isoformat())
+    for key, value in record.fields.items():
+        table.add_row(key, Text(value))
+    return table
 
 
 class LineDisplay(Widget):
@@ -24,6 +39,9 @@ class LineDisplay(Widget):
         }  
         .json {
             width: auto;        
+        }
+        .fields {
+            width: auto;
         }
         .nl {
             width: auto;
@@ -44,6 +62,12 @@ class LineDisplay(Widget):
             pass
         else:
             yield Static(JSON.from_data(json_data), expand=True, classes="json")
+            return
+
+        record = parse_lancelog(self.line)
+        if record is not None:
+            yield Label(self.text)
+            yield Static(fields_table(record), classes="fields")
             return
 
         if "\\n" in self.text.plain:
