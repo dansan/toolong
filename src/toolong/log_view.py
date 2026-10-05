@@ -315,6 +315,7 @@ class LogView(Horizontal):
         log_lines.find = event.find
         log_lines.regex = event.regex
         log_lines.case_sensitive = event.case_sensitive
+        log_lines.fields = event.fields
 
     async def watch_show_find(self, show_find: bool) -> None:
         if not self.is_mounted:

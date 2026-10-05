@@ -8,6 +8,7 @@ from threading import Event, RLock, Thread
 
 from textual.message import Message
 from textual.suggester import Suggester
+from toolong.field_query import match_line, match_spans, parse_field_query
 from toolong.scan_progress_bar import ScanProgressBar
 from toolong.find_dialog import FindDialog
 from toolong.log_file import LogFile
@@ -190,6 +191,7 @@ class LogLines(ScrollView, inherit_bindings=False):
     find = reactive("")
     case_sensitive = reactive(False)
     regex = reactive(False)
+    fields = reactive(False)
     show_gutter = reactive(False)
     pointer_line: reactive[int | None] = reactive(None, repaint=False)
     is_scrolling: reactive[int] = reactive(int)
@@ -632,7 +634,7 @@ class LogLines(ScrollView, inherit_bindings=False):
                         search_index[sub_word.lower()] = word
 
             if self.find and self.show_find:
-                self.highlight_find(text)
+                self.highlight_find(text, line)
             strip = Strip(text.render(self.app.console), text.cell_len)
             self._max_width = max(self._max_width, strip.cell_length)
             self._render_line_cache[cache_key] = strip
@@ -664,8 +666,18 @@ class LogLines(ScrollView, inherit_bindings=False):
 
         return strip
 
-    def highlight_find(self, text: Text) -> None:
+    def highlight_find(self, text: Text, line: str) -> None:
         filter_style = self.get_component_rich_style("loglines--filter-highlight")
+        if self.fields:
+            query = parse_field_query(self.find)
+            spans = (
+                None if query is None else match_spans(query, line, self.case_sensitive)
+            )
+            if spans is None:
+                text.stylize("dim")
+            for start, end in spans or ():
+                text.stylize(filter_style, start, end)
+            return
         if self.regex:
             try:
                 re.compile(self.find)
@@ -693,10 +705,15 @@ class LogLines(ScrollView, inherit_bindings=False):
     def check_match(self, line: str) -> bool:
         if not line:
             return True
+        if self.fields:
+            query = parse_field_query(self.find)
+            # Raw spans from advance_search start with the previous line's newline.
+            line = line.strip("\r\n")
+            return query is not None and match_line(query, line, self.case_sensitive)
         if self.regex:
             try:
                 return (
-                    re.match(
+                    re.search(
                         self.find,
                         line,
                         flags=0 if self.case_sensitive else re.IGNORECASE,
@@ -781,6 +798,11 @@ class LogLines(ScrollView, inherit_bindings=False):
 
     def watch_regex(self) -> None:
         self.clear_caches()
+
+    def watch_fields(self) -> None:
+        self.clear_caches()
+        self._render_line_cache.clear()
+        self.refresh()
 
     def watch_pointer_line(
         self, old_pointer_line: int | None, pointer_line: int | None
