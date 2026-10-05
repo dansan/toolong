@@ -11,7 +11,7 @@ from toolong.lancelog import HEADER_KEYS, parse_lancelog
 from toolong.logfmt import unescape
 
 _TERM = re.compile(
-    r'\s*(?P<key>[^\s="!]+)(?P<op>!=|=)(?:"(?P<quoted>(?:[^"\\]|\\.)*)"|(?P<bare>[^\s"]*))(?=\s|$)'
+    r'\s*(?P<key>[^\s="!]+)(?P<op>!=|=)(?:"(?P<quoted>(?:[^"\\]|\\.)*)"|(?P<bare>[^\s"=]*))(?=\s|$)'
 )
 
 

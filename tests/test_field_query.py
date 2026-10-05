@@ -56,7 +56,9 @@ def test_empty_query_matches_every_record(text):
     assert query(text).matches({}, case_sensitive=True)
 
 
-@pytest.mark.parametrize("text", ["level", "level ERROR", "=x", "!=x", 'k="open', 'k=a"b'])
+@pytest.mark.parametrize(
+    "text", ["level", "level ERROR", "=x", "!=x", 'k="open', 'k=a"b', "level==ERROR", "a=b=c"]
+)
 def test_invalid_queries(text):
     assert parse_field_query(text) is None
 
@@ -89,3 +91,7 @@ def test_header_level_wins_over_data_level():
     line = "2026-10-02T09:38:28.970+00:00 DEBUG    [         -] Config.\t| level=TRACE"
     assert match_line(query("level=DEBUG"), line, case_sensitive=True)
     assert not match_line(query("level=TRACE"), line, case_sensitive=True)
+
+
+def test_value_with_equals_sign_must_be_quoted():
+    assert query('a="b=c"').terms[0].value == "b=c"
