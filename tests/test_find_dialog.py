@@ -71,3 +71,23 @@ def test_regex_and_fields_are_exclusive_and_keep_the_query():
             assert app.query_one("#find-fields", Input).value == "x=1"
 
     asyncio.run(scenario())
+
+
+def test_ctrl_e_toggles_fields_mode_and_keeps_typing_in_the_input():
+    async def scenario() -> None:
+        app = FindApp()
+        async with app.run_test() as pilot:
+            dialog = app.query_one(FindDialog)
+            dialog.focus_input()
+            await pilot.pause()
+            await pilot.press("ctrl+e")
+            assert dialog.mode == "fields"
+            assert app.focused is app.query_one("#find-fields", Input)
+            await pilot.press(*"level=ERROR")
+            assert app.updates[-1].find == "level=ERROR"
+            assert app.updates[-1].fields is True
+            await pilot.press("ctrl+e")
+            assert dialog.mode == "text"
+            assert app.focused is app.query_one("#find-text", Input)
+
+    asyncio.run(scenario())

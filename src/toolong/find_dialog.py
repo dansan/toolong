@@ -82,6 +82,8 @@ class FindDialog(Widget, can_focus_children=True):
         Binding("up,k", "pointer_up", "Previous", key_display="↑"),
         Binding("j", "pointer_down", "Next", key_display="↓", show=False),
         Binding("k", "pointer_up", "Previous", key_display="↑", show=False),
+        # priority: Input binds ctrl+e to "cursor to end"
+        Binding("ctrl+e", "toggle_fields", "Fields", key_display="^e", priority=True),
     ]
     DEFAULT_CLASSES = "float"
     BORDER_TITLE = "Find"
@@ -159,7 +161,10 @@ class FindDialog(Widget, can_focus_children=True):
             self.query_one(other, Checkbox).value = False
         self.set_class(self.query_one("#regex", Checkbox).value, "-find-regex")
         self.set_class(self.query_one("#fields", Checkbox).value, "-find-fields")
+        typing = isinstance(self.app.focused, Input)
         self._input().value = value
+        if typing:
+            self.focus_input()
         self.post_update()
 
     @on(Input.Changed)
@@ -184,6 +189,10 @@ class FindDialog(Widget, can_focus_children=True):
 
     def allow_focus_children(self) -> bool:
         return self.has_class("visible")
+
+    def action_toggle_fields(self) -> None:
+        fields = self.query_one("#fields", Checkbox)
+        fields.value = not fields.value
 
     def action_dismiss_find(self) -> None:
         self.post_message(FindDialog.Dismiss())

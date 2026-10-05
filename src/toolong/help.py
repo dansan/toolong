@@ -46,7 +46,7 @@ Repository: [https://github.com/Textualize/toolong](https://github.com/Textualiz
 
 Press `ctrl+f` or `/` to find text. Check *Regex* to find with a regular expression.
 
-Check *Fields* to find Lancelog log lines by field.
+Check *Fields*, or press `ctrl+e` in the find dialog, to find Lancelog log lines by field.
 A query is one or more `key=value` or `key!=value` terms, and a line matches when all terms match.
 Keys are the data keys after the `|`, plus `level`, `request_id` and `message` from the header.
 If the data has a `request_id`, its full value is matched instead of the shortened one in the header.
