@@ -82,6 +82,15 @@ If you add the `--merge` switch, TooLong will merge all the log files based on t
 $ tl mysite.log* --merge
 ```
 
+#### Time range
+
+Add `--since` and `--until` to show only the lines in a time range, also when merging files.
+See `tl --help` for the time format.
+
+```bash
+$ tl app.log --since 2026-10-02T09:00 --until 2026-10-02
+```
+
 ### Pointer mode
 
 Pointer mode lets you navigate by line.
