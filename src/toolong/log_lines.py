@@ -919,17 +919,28 @@ class LogLines(ScrollView, inherit_bindings=False):
         elif unit == "d":
             target_timestamp = timestamp + timedelta(hours=steps * 24)
 
+        # Naive and aware datetimes can't be compared; mixed files contain both.
+        naive = target_timestamp.tzinfo is None
+
         if direction == +1:
             line_count = self.line_count
             while line_no < line_count:
                 timestamp = self.get_timestamp(line_no)
-                if timestamp is not None and timestamp >= target_timestamp:
+                if (
+                    timestamp is not None
+                    and (timestamp.tzinfo is None) == naive
+                    and timestamp >= target_timestamp
+                ):
                     break
                 line_no += 1
         else:
             while line_no > 0:
                 timestamp = self.get_timestamp(line_no)
-                if timestamp is not None and timestamp <= target_timestamp:
+                if (
+                    timestamp is not None
+                    and (timestamp.tzinfo is None) == naive
+                    and timestamp <= target_timestamp
+                ):
                     break
                 line_no -= 1
 

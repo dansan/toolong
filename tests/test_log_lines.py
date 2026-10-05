@@ -43,6 +43,26 @@ def test_anchored_regex_find_matches_raw_lines(tmp_path):
     asyncio.run(scenario())
 
 
+def test_navigate_skips_naive_timestamps_in_a_file_with_aware_ones(tmp_path):
+    path = tmp_path / "mixed.log"
+    path.write_text(
+        "2026-10-02T09:38:00.000+00:00 INFO     [-] aware\n"
+        "2026-10-02 09:38:29,100 INFO naive\n"
+        "2026-10-02T09:39:30.000+00:00 INFO     [-] aware\n"
+    )
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("m")
+            await pilot.pause()
+            assert log_lines.pointer_line == 2
+
+    asyncio.run(scenario())
+
+
 def test_find_skips_blank_lines(tmp_path):
     path = tmp_path / "blank.log"
     path.write_text("first\n\nneedle\n")
