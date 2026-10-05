@@ -14,6 +14,7 @@ from toolong.lancelog import parse_lancelog
 from toolong.scan_progress_bar import ScanProgressBar
 from toolong.find_dialog import FindDialog
 from toolong.log_file import LogFile
+from toolong.time_range import TimeRange, fill_missing_timestamps
 from toolong.messages import (
     DismissOverlay,
     FileError,
@@ -202,10 +203,16 @@ class LogLines(ScrollView, inherit_bindings=False):
     can_tail: reactive[bool] = reactive(True)
     show_line_numbers: reactive[bool] = reactive(False)
 
-    def __init__(self, watcher: WatcherBase, file_paths: list[str]) -> None:
+    def __init__(
+        self,
+        watcher: WatcherBase,
+        file_paths: list[str],
+        time_range: TimeRange | None = None,
+    ) -> None:
         super().__init__()
         self.watcher = watcher
         self.file_paths = file_paths
+        self.time_range = time_range
         self.log_files = [LogFile(path) for path in file_paths]
         self._render_line_cache: LRUCache[
             tuple[LogFile, int, int, bool, str], Strip
@@ -300,7 +307,7 @@ class LogLines(ScrollView, inherit_bindings=False):
     def run_scan(self, save_merge: str | None = None) -> None:
         worker = get_current_worker()
 
-        if len(self.log_files) > 1:
+        if len(self.log_files) > 1 or self.time_range is not None:
             self.merge_log_files()
             if save_merge is not None:
                 self.call_later(self.save, save_merge, self.line_count)
@@ -377,7 +384,6 @@ class LogLines(ScrollView, inherit_bindings=False):
                 for line_no, break_position, timestamp in timestamps:
                     append_meta((timestamp, line_no, log_file))
                     append(break_position)
-                append(log_file.size)
 
                 self.post_message(
                     ScanProgress(
@@ -390,24 +396,29 @@ class LogLines(ScrollView, inherit_bindings=False):
                         ScanComplete(total_size, position + break_position)
                     )
                     return
+            append(log_file.size)
 
-            # Header may be missing timestamp, so we will attempt to back fill timestamps
-            seconds = 0.0
-            for offset, (seconds, line_no, log_file) in enumerate(meta):
-                if seconds:
-                    for index, (_seconds, line_no, log_file) in zip(
-                        range(offset), meta
-                    ):
-                        meta[index] = (seconds, line_no, log_file)
-                    break
-                if offset > 10:
-                    # May be pointless to scan the entire thing
-                    break
+            fill_missing_timestamps(meta)
+            if self.time_range is not None:
+                if not any(seconds for seconds, _, _ in meta):
+                    self.notify(
+                        f"No timestamps found in {log_file.name!r}",
+                        title="Time range",
+                        severity="warning",
+                    )
+                time_range = self.time_range
+                meta = [line for line in meta if line[0] and time_range.contains(line[0])]
             self._merge_lines.extend(meta)
 
             position += log_file.size
 
         merge_lines.sort(key=itemgetter(0, 1))
+        if self.time_range is not None:
+            self.notify(
+                f"{len(merge_lines):,} lines {self.time_range.description}",
+                title="Time range",
+                severity="information" if merge_lines else "warning",
+            )
 
         self.post_message(ScanComplete(total_size, total_size))
 

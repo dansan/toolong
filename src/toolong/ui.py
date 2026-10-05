@@ -12,6 +12,7 @@ from textual.screen import Screen
 from textual.widgets import TabbedContent, TabPane
 
 from toolong.log_view import LogView
+from toolong.time_range import TimeRange
 from toolong.watcher import get_watcher
 from toolong.help import HelpScreen
 
@@ -51,6 +52,7 @@ class LogScreen(Screen):
                             self.app.file_paths,
                             self.app.watcher,
                             can_tail=False,
+                            time_range=self.app.time_range,
                         )
                     )
             else:
@@ -60,7 +62,8 @@ class LogScreen(Screen):
                             LogView(
                                 [path],
                                 self.app.watcher,
-                                can_tail=True,
+                                can_tail=self.app.time_range is None,
+                                time_range=self.app.time_range,
                             )
                         )
 
@@ -110,11 +113,16 @@ class UI(App):
         return sorted(paths, key=CompareTokens)
 
     def __init__(
-        self, file_paths: list[str], merge: bool = False, save_merge: str | None = None
+        self,
+        file_paths: list[str],
+        merge: bool = False,
+        save_merge: str | None = None,
+        time_range: TimeRange | None = None,
     ) -> None:
         self.file_paths = self.sort_paths(file_paths)
         self.merge = merge
         self.save_merge = save_merge
+        self.time_range = time_range
         self.watcher = get_watcher()
         super().__init__()
 

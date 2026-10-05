@@ -29,6 +29,7 @@ from toolong.find_dialog import FindDialog
 from toolong.line_panel import LinePanel
 from toolong.watcher import WatcherBase
 from toolong.log_lines import LogLines
+from toolong.time_range import TimeRange
 
 
 SPLIT_REGEX = r"[\s/\[\]]"
@@ -288,16 +289,23 @@ class LogView(Horizontal):
     can_tail: reactive[bool] = reactive(True)
 
     def __init__(
-        self, file_paths: list[str], watcher: WatcherBase, can_tail: bool = True
+        self,
+        file_paths: list[str],
+        watcher: WatcherBase,
+        can_tail: bool = True,
+        time_range: TimeRange | None = None,
     ) -> None:
         self.file_paths = file_paths
         self.watcher = watcher
+        self.time_range = time_range
         super().__init__()
         self.can_tail = can_tail
 
     def compose(self) -> ComposeResult:
         yield (
-            log_lines := LogLines(self.watcher, self.file_paths).data_bind(
+            log_lines := LogLines(
+                self.watcher, self.file_paths, self.time_range
+            ).data_bind(
                 LogView.tail,
                 LogView.show_line_numbers,
                 LogView.show_find,
