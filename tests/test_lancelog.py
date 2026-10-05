@@ -125,3 +125,10 @@ def test_timestamp_offset_variants(timestamp, offset):
     record = parse_lancelog(f"{timestamp} DEBUG [-] m")
     assert record is not None and record.timestamp is not None
     assert record.timestamp.utcoffset() == offset
+
+
+@pytest.mark.parametrize(("fraction", "microsecond"), [(".970", 970000), (".9701", 970100), (".97012", 970120)])
+def test_timestamp_fraction_variants(fraction, microsecond):
+    record = parse_lancelog(f"2026-10-02T09:38:28{fraction}+00:00 DEBUG [-] m")
+    assert record is not None and record.timestamp is not None
+    assert record.timestamp.microsecond == microsecond

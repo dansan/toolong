@@ -19,6 +19,7 @@ _LINE = re.compile(
     r"(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}(?:Z|[+-]\d{2}:?\d{2})) +"
     r"(?P<level>\w+) +\[(?P<request_id>[^\]]*)\] (?P<rest>.*)"
 )
+_TIMESTAMP = re.compile(r"(?P<head>.*\.)(?P<fraction>\d+)(?:Z|(?P<hours>[+-]\d{2}):?(?P<minutes>\d{2}))")
 # LogFile.get_line() expands tabs, so "\t| " may arrive as spaces that end on a tab stop.
 _SEPARATOR = re.compile(r"(?:\t| {1,4})\| ")
 
@@ -72,16 +73,28 @@ def _find_data(
     return first, None
 
 
+def _parse_timestamp(text: str) -> datetime | None:
+    # Before Python 3.11, fromisoformat() accepts only "+HH:MM" and 3 or 6 fraction digits.
+    match = _TIMESTAMP.fullmatch(text)
+    if match is None:
+        return None
+    normalized = (
+        f"{match['head']}{match['fraction'].ljust(6, '0')}"
+        f"{match['hours'] or '+00'}:{match['minutes'] or '00'}"
+    )
+    try:
+        return datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+
+
 def parse_lancelog(line: str) -> LancelogRecord | None:
     """Parse a raw or tab-expanded Lancelog line, or return None for other lines."""
     line = line.rstrip("\r\n")
     match = _LINE.match(line)
     if match is None:
         return None
-    try:
-        timestamp = datetime.fromisoformat(match["timestamp"].replace("Z", "+00:00"))
-    except ValueError:
-        timestamp = None
+    timestamp = _parse_timestamp(match["timestamp"])
     rest_start = match.start("rest")
     separator, pairs = _find_data(line, rest_start)
     message_end = len(line) if separator is None else separator[0]
