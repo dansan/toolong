@@ -61,3 +61,20 @@ def test_line_display_has_no_field_table_for_other_lines():
             assert len(app.query(".fields")) == 0
 
     asyncio.run(scenario())
+
+
+def test_fields_table_shows_header_level_and_data_level():
+    record = parse_lancelog(
+        "2026-10-02T09:38:29.200+00:00 DEBUG    [         -] Config.\t| level=TRACE"
+    )
+    assert record is not None
+    rows = [line.split() for line in render(fields_table(record)).splitlines()]
+    assert ["level", "DEBUG"] in rows
+    assert ["level", "TRACE"] in rows
+
+
+def test_fields_table_shows_keys_verbatim():
+    record = parse_lancelog("2026-10-02T09:38:29.200+00:00 DEBUG    [-] C.\t| x[bold]y=1")
+    assert record is not None
+    assert "x[bold]y" in render(fields_table(record))
+

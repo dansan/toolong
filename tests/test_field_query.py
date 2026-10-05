@@ -83,3 +83,9 @@ def test_match_spans_cover_matched_fields():
 
 def test_match_spans_is_none_without_match():
     assert match_spans(query("level=INFO"), LINE, case_sensitive=True) is None
+
+
+def test_header_level_wins_over_data_level():
+    line = "2026-10-02T09:38:28.970+00:00 DEBUG    [         -] Config.\t| level=TRACE"
+    assert match_line(query("level=DEBUG"), line, case_sensitive=True)
+    assert not match_line(query("level=TRACE"), line, case_sensitive=True)

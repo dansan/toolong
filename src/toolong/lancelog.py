@@ -13,6 +13,8 @@ from functools import cached_property
 from toolong.logfmt import LogfmtPair, parse_pairs
 
 HEADER_KEYS = ("level", "request_id", "message")
+# A data request_id is the full value of the shortened header one; these two keep the header value.
+_HEADER_ONLY_KEYS = ("level", "message")
 TAB_SIZE = 4
 
 _LINE = re.compile(
@@ -43,10 +45,16 @@ class LancelogRecord:
             "request_id": self.request_id,
             "message": self.message,
         }
-        fields.update((pair.key, pair.value) for pair in self.pairs)
+        fields.update(
+            (pair.key, pair.value)
+            for pair in self.pairs
+            if pair.key not in _HEADER_ONLY_KEYS
+        )
         return fields
 
     def field_span(self, key: str) -> tuple[int, int] | None:
+        if key in _HEADER_ONLY_KEYS:
+            return self.spans[key]
         for pair in reversed(self.pairs):
             if pair.key == key:
                 return pair.start, pair.end

@@ -13,7 +13,7 @@ from textual.containers import ScrollableContainer
 from textual.widget import Widget
 from textual.widgets import Label, Static
 
-from toolong.lancelog import LancelogRecord, parse_lancelog
+from toolong.lancelog import HEADER_KEYS, LancelogRecord, parse_lancelog
 
 
 def fields_table(record: LancelogRecord) -> Table:
@@ -22,8 +22,10 @@ def fields_table(record: LancelogRecord) -> Table:
     table.add_column("Value", overflow="fold")
     if record.timestamp is not None:
         table.add_row("timestamp", record.timestamp.isoformat())
-    for key, value in record.fields.items():
-        table.add_row(key, Text(value))
+    for key in HEADER_KEYS:
+        table.add_row(key, Text(record.fields[key]))
+    for pair in record.pairs:
+        table.add_row(Text(pair.key), Text(pair.value))
     return table
 
 

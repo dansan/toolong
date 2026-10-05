@@ -132,3 +132,15 @@ def test_timestamp_fraction_variants(fraction, microsecond):
     record = parse_lancelog(f"2026-10-02T09:38:28{fraction}+00:00 DEBUG [-] m")
     assert record is not None and record.timestamp is not None
     assert record.timestamp.microsecond == microsecond
+
+
+DATA_LEVEL_LINE = HEADER.replace("INFO ", "DEBUG") + "Config.\t| level=TRACE message=other"
+
+
+def test_header_level_and_message_win_over_data_keys():
+    record = parse_lancelog(DATA_LEVEL_LINE)
+    assert record is not None
+    assert record.fields["level"] == "DEBUG"
+    assert record.fields["message"] == "Config."
+    assert record.field_span("level") == record.spans["level"]
+    assert record.field_span("message") == record.spans["message"]
