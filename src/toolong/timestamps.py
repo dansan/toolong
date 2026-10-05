@@ -12,8 +12,32 @@ class TimestampFormat(NamedTuple):
     parser: Callable[[str], datetime | None]
 
 
-def parse_timestamp(format: str) -> Callable[[str], datetime | None]:
+# strptime's %b expects month names in the LC_TIME locale, which ui.py sets
+# from the environment, but log files use English names.
+_MONTH_NUMBERS = {
+    name: f"{number:02}"
+    for number, name in enumerate(
+        ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], 1
+    )
+}
+_MONTH_NAME = re.compile(r"[A-Z][a-z]{2}")
+
+
+def parse_timestamp(format: str, without_year: bool = False) -> Callable[[str], datetime | None]:
+    """Make a parser for `format`; `without_year` puts the timestamp in the current year."""
+    english_months = "%b" in format
+    if english_months:
+        format = format.replace("%b", "%m")
+    if without_year:
+        format = f"%Y {format}"
+
     def parse(timestamp: str) -> datetime | None:
+        if english_months:
+            timestamp = _MONTH_NAME.sub(
+                lambda match: _MONTH_NUMBERS.get(match[0], match[0]), timestamp, count=1
+            )
+        if without_year:
+            timestamp = f"{datetime.now().year} {timestamp}"
         try:
             return datetime.strptime(timestamp, format)
         except ValueError:
@@ -21,6 +45,10 @@ def parse_timestamp(format: str) -> Callable[[str], datetime | None]:
 
     return parse
 
+
+# An offset after a naive match means the line has an aware timestamp that a
+# format without an offset cut short, e.g. after its first 3 fraction digits.
+_OFFSET_AFTER_MATCH = re.compile(r"\d*(?:[.,]\d+)?\s?(?:Z|[+-]\d{2}:?\d{2})")
 
 # Info taken from logmerger project https://github.com/ptmcg/logmerger/blob/main/logmerger/timestamp_wrapper.py
 
@@ -76,7 +104,7 @@ TIMESTAMP_FORMATS = [
     ),
     TimestampFormat(
         r"[JFMASOND][a-z]{2}\s(\s|\d)\d \d{2}:\d{2}:\d{2}",
-        parse_timestamp("%b %d %H:%M:%S"),
+        parse_timestamp("%b %d %H:%M:%S", without_year=True),
     ),
     TimestampFormat(
         r"\d{2}\/\w+\/\d{4} \d{2}:\d{2}:\d{2}",
@@ -129,6 +157,7 @@ class TimestampScanner:
         """
         if len(line) > 10_000:
             line = line[:10000]
+        naive_fallback: datetime | None = None
         for index, timestamp_format in enumerate(self._timestamp_formats):
             regex, parse_callable = timestamp_format
             if (match := re.search(regex, line)) is not None:
@@ -137,6 +166,9 @@ class TimestampScanner:
                         continue
                 except Exception:
                     continue
+                if timestamp.tzinfo is None and _OFFSET_AFTER_MATCH.match(line, match.end()):
+                    naive_fallback = naive_fallback or timestamp
+                    continue
                 if index:
                     # Put matched format at the top so that
                     # the next line will be matched quicker
@@ -144,7 +176,7 @@ class TimestampScanner:
                     self._timestamp_formats.insert(0, timestamp_format)
 
                 return timestamp
-        return None
+        return naive_fallback
 
 
 if __name__ == "__main__":

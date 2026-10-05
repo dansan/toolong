@@ -1,5 +1,8 @@
 import asyncio
 import functools
+import time
+
+import pytest
 
 from pilot_helpers import scanned_log_lines
 from toolong.log_file import LogFile
@@ -87,3 +90,27 @@ def test_lines_of_later_scan_batches_keep_their_content(tmp_path, monkeypatch):
         assert shown(log_lines) == lines
 
     run_ui(UI([write(tmp_path, "big.log", lines)], time_range=DAY), check)
+
+
+@pytest.fixture
+def central_european_time(monkeypatch):
+    monkeypatch.setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3")
+    time.tzset()
+    yield
+    monkeypatch.undo()
+    time.tzset()
+
+
+def test_naive_line_does_not_shift_later_lancelog_lines(tmp_path, central_european_time):
+    lines = [
+        "2026-10-02T09:00:00.000+00:00 INFO     [         -] a",
+        "2026-10-02T09:00:01.000 naive local time",
+        "2026-10-02T09:00:02.000+00:00 INFO     [         -] b",
+        "2026-10-02T09:00:03.000+00:00 INFO     [         -] c",
+    ]
+
+    def check(app: UI, log_lines: LogLines) -> None:
+        assert shown(log_lines) == lines[2:]
+
+    time_range = TimeRange.from_strings("2026-10-02T09:00:02Z", None)
+    run_ui(UI([write(tmp_path, "mixed.log", lines)], time_range=time_range), check)

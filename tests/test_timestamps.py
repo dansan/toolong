@@ -1,3 +1,5 @@
+import calendar
+import locale
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -21,3 +23,58 @@ def test_scanner_keeps_microseconds_and_negative_offsets():
 def test_scanner_returns_aware_microseconds_for_lancelog_offsets(offset):
     timestamp = TimestampScanner().scan(f"2026-10-02T09:38:28.970123{offset} INFO     [-] x")
     assert timestamp == datetime(2026, 10, 2, 9, 38, 28, 970123, tzinfo=timezone.utc)
+
+
+def test_naive_iso_line_does_not_make_later_offset_lines_naive():
+    scanner = TimestampScanner()
+    lines = [
+        "2026-10-02T09:00:00.000+00:00 INFO     [-] a",
+        "2026-10-02T09:00:01.000 x",
+        "2026-10-02T09:00:02.000+00:00 INFO     [-] b",
+        "2026-10-02T09:00:03.123456+00:00 INFO     [-] c",
+    ]
+    timestamps = [scanner.scan(line) for line in lines]
+    assert None not in timestamps
+    assert [ts is not None and ts.tzinfo is not None for ts in timestamps] == [True, False, True, True]
+
+
+def test_offset_the_aware_formats_miss_still_gives_the_naive_time():
+    timestamp = TimestampScanner().scan("2026-10-02 09:00:01+00:00 x")
+    assert timestamp == datetime(2026, 10, 2, 9, 0, 1)
+
+
+def test_syslog_timestamp_gets_the_current_year():
+    timestamp = TimestampScanner().scan("Oct  2 09:00:01 host sshd[1]: x")
+    assert timestamp == datetime(datetime.now().year, 10, 2, 9, 0, 1)
+
+
+def test_syslog_february_29_needs_a_leap_year():
+    year = datetime.now().year
+    timestamp = TimestampScanner().scan("Feb 29 09:00:01 host sshd[1]: x")
+    assert timestamp == (datetime(year, 2, 29, 9, 0, 1) if calendar.isleap(year) else None)
+
+
+@pytest.fixture
+def german_time_locale():
+    previous = locale.setlocale(locale.LC_TIME)
+    try:
+        locale.setlocale(locale.LC_TIME, "de_DE.UTF-8")
+    except locale.Error:
+        pytest.skip("de_DE.UTF-8 locale not installed")
+    yield
+    locale.setlocale(locale.LC_TIME, previous)
+
+
+@pytest.mark.parametrize(
+    "line, expected",
+    [
+        ("Oct  2 09:00:01 host sshd[1]: x", datetime(datetime.now().year, 10, 2, 9, 0, 1)),
+        ('1.2.3.4 - - [29/Oct/2024 13:45:19] "GET /"', datetime(2024, 10, 29, 13, 45, 19)),
+        (
+            '1.2.3.4 - - [29/Oct/2024:13:45:19 +0000] "GET /"',
+            datetime(2024, 10, 29, 13, 45, 19, tzinfo=timezone.utc),
+        ),
+    ],
+)
+def test_english_month_names_parse_in_any_locale(german_time_locale, line, expected):
+    assert TimestampScanner().scan(line) == expected
