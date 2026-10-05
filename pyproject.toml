@@ -27,7 +27,6 @@ tl = "toolong.cli:run"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]

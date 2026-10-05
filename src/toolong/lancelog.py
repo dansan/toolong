@@ -1,4 +1,4 @@
-"""Parse log lines in the Lancelog format (Univention ADR 0010 "Log Format").
+r"""Parse log lines in the Lancelog format (Univention ADR 0010 "Log Format").
 
 <timestamp> <level> [<request ID>] <message>\t| <logfmt data>
 """
