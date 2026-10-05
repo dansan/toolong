@@ -9,6 +9,8 @@ from threading import Event, RLock, Thread
 from textual.message import Message
 from textual.suggester import Suggester
 from toolong.field_query import match_line, match_spans, parse_field_query
+from toolong.field_suggester import FieldIndex, FieldSuggester
+from toolong.lancelog import parse_lancelog
 from toolong.scan_progress_bar import ScanProgressBar
 from toolong.find_dialog import FindDialog
 from toolong.log_file import LogFile
@@ -211,6 +213,8 @@ class LogLines(ScrollView, inherit_bindings=False):
         self._max_width = 0
         self._search_index: LRUCache[str, str] = LRUCache(maxsize=10000)
         self._suggester = SearchSuggester(self._search_index)
+        self._field_index = FieldIndex()
+        self._field_suggester = FieldSuggester(self._field_index)
         self.icons: dict[int, str] = {}
         self._line_breaks: dict[LogFile, list[int]] = {}
         self._line_cache: LRUCache[tuple[LogFile, int, int], str] = LRUCache(10000)
@@ -632,6 +636,9 @@ class LogLines(ScrollView, inherit_bindings=False):
                             search_index[sub_word.lower()] = word
                     else:
                         search_index[sub_word.lower()] = word
+
+            if (record := parse_lancelog(line)) is not None:
+                self._field_index.add(record.fields)
 
             if self.find and self.show_find:
                 self.highlight_find(text, line)

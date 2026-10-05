@@ -305,7 +305,7 @@ class LogView(Horizontal):
             )
         )
         yield LinePanel()
-        yield FindDialog(log_lines._suggester)
+        yield FindDialog(log_lines._suggester, log_lines._field_suggester)
         yield InfoOverlay().data_bind(LogView.tail)
         yield LogFooter().data_bind(LogView.tail, LogView.can_tail)
 

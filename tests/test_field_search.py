@@ -61,3 +61,17 @@ def test_field_highlight_on_line_longer_than_display_limit(tmp_path):
             assert all(str(span.style) != "dim" for span in text.spans)
 
     asyncio.run(scenario())
+
+
+def test_rendered_lines_feed_the_field_suggester(tmp_path):
+    path = tmp_path / "app.log"
+    path.write_text("\n".join(LINES) + "\n")
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            suggestion = await log_lines._field_suggester.get_suggestion("gitlab_pro")
+            assert suggestion == "gitlab_project_id="
+
+    asyncio.run(scenario())
