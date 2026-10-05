@@ -9,6 +9,7 @@ import rich.repr
 from rich.text import Text
 
 from toolong.highlighter import LogHighlighter
+from toolong.lancelog import parse_lancelog
 from toolong import timestamps
 from typing import Optional
 
@@ -103,7 +104,34 @@ class JSONLogFormat(LogFormat):
         return timestamp, line, text
 
 
+LANCELOG_LEVEL_STYLES = {
+    "TRACE": "grey50",
+    "DEBUG": "grey50",
+    "WARNING": "yellow",
+    "ERROR": "red",
+    "CRITICAL": "red",
+}
+LANCELOG_DATA_STYLE = "grey50"
+
+
+class LancelogLogFormat(LogFormat):
+    """The record in its level's color; the data section is gray, it is read in the line panel."""
+
+    def parse(self, line: str) -> ParseResult | None:
+        record = parse_lancelog(line)
+        if record is None:
+            return None
+        text = Text(line)
+        data_start = record.spans.get("separator", (len(line), len(line)))[0]
+        level_style = LANCELOG_LEVEL_STYLES.get(record.level.upper())
+        if level_style:
+            text.stylize(level_style, 0, data_start)
+        text.stylize(LANCELOG_DATA_STYLE, data_start)
+        return record.timestamp, line, text
+
+
 FORMATS = [
+    LancelogLogFormat(),
     JSONLogFormat(),
     CommonLogFormat(),
     CombinedLogFormat(),
