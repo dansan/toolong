@@ -3,6 +3,9 @@ from datetime import datetime
 import re
 from typing import Callable, NamedTuple
 
+from toolong.lancelog import TIMESTAMP_PATTERN
+from toolong.lancelog import parse_timestamp as parse_lancelog_timestamp
+
 
 class TimestampFormat(NamedTuple):
     regex: str
@@ -22,10 +25,7 @@ def parse_timestamp(format: str) -> Callable[[str], datetime | None]:
 # Info taken from logmerger project https://github.com/ptmcg/logmerger/blob/main/logmerger/timestamp_wrapper.py
 
 TIMESTAMP_FORMATS = [
-    TimestampFormat(
-        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}[+-]\d{2}:\d{2}",
-        datetime.fromisoformat,
-    ),
+    TimestampFormat(TIMESTAMP_PATTERN, parse_lancelog_timestamp),
     TimestampFormat(
         r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}\s?(?:Z|[+-]\d{4})",
         datetime.fromisoformat,

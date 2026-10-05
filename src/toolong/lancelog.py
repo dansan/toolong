@@ -17,8 +17,10 @@ HEADER_KEYS = ("level", "request_id", "message")
 _HEADER_ONLY_KEYS = ("level", "message")
 TAB_SIZE = 4
 
+TIMESTAMP_PATTERN = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}(?:Z|[+-]\d{2}:?\d{2})"
+
 _LINE = re.compile(
-    r"(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3,6}(?:Z|[+-]\d{2}:?\d{2})) +"
+    rf"(?P<timestamp>{TIMESTAMP_PATTERN}) +"
     r"(?P<level>\w+) +\[(?P<request_id>[^\]]*)\] (?P<rest>.*)"
 )
 _TIMESTAMP = re.compile(r"(?P<head>.*\.)(?P<fraction>\d+)(?:Z|(?P<hours>[+-]\d{2}):?(?P<minutes>\d{2}))")
@@ -81,7 +83,7 @@ def _find_data(
     return first, None
 
 
-def _parse_timestamp(text: str) -> datetime | None:
+def parse_timestamp(text: str) -> datetime | None:
     # Before Python 3.11, fromisoformat() accepts only "+HH:MM" and 3 or 6 fraction digits.
     match = _TIMESTAMP.fullmatch(text)
     if match is None:
@@ -102,7 +104,7 @@ def parse_lancelog(line: str) -> LancelogRecord | None:
     match = _LINE.match(line)
     if match is None:
         return None
-    timestamp = _parse_timestamp(match["timestamp"])
+    timestamp = parse_timestamp(match["timestamp"])
     rest_start = match.start("rest")
     separator, pairs = _find_data(line, rest_start)
     message_end = len(line) if separator is None else separator[0]
