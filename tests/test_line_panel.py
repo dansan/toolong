@@ -78,3 +78,14 @@ def test_fields_table_shows_keys_verbatim():
     assert record is not None
     assert "x[bold]y" in render(fields_table(record))
 
+
+def test_line_display_splits_repr_newlines_in_lancelog_messages():
+    line = "2026-10-02T09:38:29.200+00:00 ERROR    [-] 'a\\nb'\t| k=v"
+
+    async def scenario() -> None:
+        app = PanelApp(line)
+        async with app.run_test():
+            assert len(app.query(".nl")) == 1
+            assert len(app.query(".fields")) == 1
+
+    asyncio.run(scenario())

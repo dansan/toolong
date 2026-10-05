@@ -66,18 +66,16 @@ class LineDisplay(Widget):
             yield Static(JSON.from_data(json_data), expand=True, classes="json")
             return
 
-        record = parse_lancelog(self.line)
-        if record is not None:
-            yield Label(self.text)
-            yield Static(fields_table(record), classes="fields")
-            return
-
         if "\\n" in self.text.plain:
             lines = self.text.split("\\n")
             text = Text("\n", no_wrap=True).join(lines)
             yield Label(text, classes="nl")
         else:
             yield Label(self.text)
+
+        record = parse_lancelog(self.line)
+        if record is not None:
+            yield Static(fields_table(record), classes="fields")
 
 
 class LinePanel(ScrollableContainer):
