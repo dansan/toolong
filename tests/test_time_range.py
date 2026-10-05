@@ -53,6 +53,11 @@ def test_invalid_times_are_rejected(since, until):
         TimeRange.from_strings(since, until)
 
 
+def test_error_shows_the_original_text():
+    with pytest.raises(ValueError, match=r"'noonZ'"):
+        TimeRange.from_strings("noonZ", None)
+
+
 def test_since_after_until_is_rejected():
     with pytest.raises(ValueError, match="after"):
         TimeRange.from_strings("2026-10-03", "2026-10-02T12:00")

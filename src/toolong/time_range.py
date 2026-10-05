@@ -12,12 +12,13 @@ _DATE_ONLY = re.compile(r"\d{4}-\d{2}-\d{2}")
 Item = TypeVar("Item")
 
 
-def _parse(text: str) -> datetime:
-    text = text.strip()
-    if text.endswith("Z"):
-        text = text[:-1] + "+00:00"
+def parse_time(text: str) -> datetime:
+    """Parse a `--since` / `--until` value, ISO 8601 with an optional `Z`."""
+    iso_text = text.strip()
+    if iso_text.endswith("Z"):
+        iso_text = iso_text[:-1] + "+00:00"
     try:
-        return datetime.fromisoformat(text)
+        return datetime.fromisoformat(iso_text)
     except ValueError:
         raise ValueError(f"not an ISO 8601 date or date and time: {text!r}") from None
 
@@ -40,11 +41,11 @@ class TimeRange:
         """
         if since is None and until is None:
             return None
-        since_seconds = None if since is None else _parse(since).timestamp()
+        since_seconds = None if since is None else parse_time(since).timestamp()
         until_seconds = None
         until_exclusive = False
         if until is not None:
-            moment = _parse(until)
+            moment = parse_time(until)
             if _DATE_ONLY.fullmatch(until.strip()):
                 moment += timedelta(days=1)
                 until_exclusive = True
