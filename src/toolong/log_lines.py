@@ -714,8 +714,6 @@ class LogLines(ScrollView, inherit_bindings=False):
             return True
         if self.fields:
             query = parse_field_query(self.find)
-            # Raw spans from advance_search start with the previous line's newline.
-            line = line.strip("\r\n")
             return query is not None and match_line(query, line, self.case_sensitive)
         if self.regex:
             try:
@@ -760,10 +758,13 @@ class LogLines(ScrollView, inherit_bindings=False):
             with self._lock:
                 for line_no in line_range:
                     log_file, start, end = index_to_span(line_no)
-                    line = log_file.get_raw(start, end).decode(
-                        "utf-8", errors="replace"
+                    # Raw spans start with the previous line's newline.
+                    line = (
+                        log_file.get_raw(start, end)
+                        .decode("utf-8", errors="replace")
+                        .strip("\r\n")
                     )
-                    if check_match(line):
+                    if line and check_match(line):
                         self.pointer_line = line_no
                         self.scroll_pointer_to_center()
                         return
