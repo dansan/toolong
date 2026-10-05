@@ -3,21 +3,48 @@ from __future__ import annotations
 from importlib.metadata import version
 import os
 import sys
+from typing import IO
 
 import click
 
-from toolong.time_range import TimeRange
+from toolong.time_range import TimeRange, parse_time
 from toolong.ui import UI
 
 
-def time_range_args(since: str | None, until: str | None) -> list[str]:
-    """Time range options for the child process that shows piped input."""
-    args: list[str] = []
+def child_argv(
+    program: str,
+    path: str,
+    since: str | None,
+    until: str | None,
+    output_merge: str | None,
+) -> list[str]:
+    """Command line for the child process that shows the piped input saved in `path`."""
+    argv = [program, path]
     if since is not None:
-        args += ["--since", since]
+        argv += ["--since", since]
     if until is not None:
-        args += ["--until", until]
-    return args
+        argv += ["--until", until]
+    if output_merge is not None:
+        argv += ["-o", output_merge]
+    return argv
+
+
+def copy_until_eof(fileno: int, destination: IO[bytes]) -> None:
+    while chunk := os.read(fileno, 1024 * 64):
+        destination.write(chunk)
+
+
+def stdin_is_tty() -> bool:
+    return sys.__stdin__ is not None and sys.__stdin__.isatty()
+
+
+def check_time(ctx: click.Context, param: click.Parameter, value: str | None) -> str | None:
+    if value is not None:
+        try:
+            parse_time(value)
+        except ValueError as error:
+            raise click.BadParameter(str(error)) from None
+    return value
 
 
 @click.command()
@@ -34,20 +61,25 @@ def time_range_args(since: str | None, until: str | None) -> list[str]:
 @click.option(
     "--since",
     metavar="TIME",
+    callback=check_time,
     help=(
-        "Show only lines at or after TIME, an ISO 8601 date or date and time,"
+        "Show only lines at or after TIME, an ISO 8601 date (YYYY-MM-DD) or date and time,"
         " e.g. 2026-10-02 or 2026-10-02T09:30. Without a UTC offset, TIME is local time."
     ),
 )
 @click.option(
     "--until",
     metavar="TIME",
-    help="Show only lines at or before TIME. A date without a time includes that whole day.",
+    callback=check_time,
+    help=(
+        "Show only lines at or before TIME, in the same format as --since."
+        " A date alone (YYYY-MM-DD) includes that whole day."
+    ),
 )
 def run(
     files: list[str],
     merge: bool,
-    output_merge: str,
+    output_merge: str | None,
     since: str | None,
     until: str | None,
 ) -> None:
@@ -56,7 +88,7 @@ def run(
         time_range = TimeRange.from_strings(since, until)
     except ValueError as error:
         raise click.UsageError(str(error)) from None
-    stdin_tty = sys.__stdin__.isatty()
+    stdin_tty = stdin_is_tty()
     if not files and stdin_tty:
         ctx = click.get_current_context()
         click.echo(ctx.get_help())
@@ -77,23 +109,34 @@ def run(
             """Don't write anything when a signal forces an error."""
             sys.stderr.write("^C")
 
-        signal.signal(signal.SIGINT, request_exit)
-        signal.signal(signal.SIGTERM, request_exit)
-
         # Write piped data to a temporary file
         with tempfile.NamedTemporaryFile(
             mode="w+b", buffering=0, prefix="tl_"
         ) as temp_file:
 
+            if time_range is not None:
+                # The child scans the file once, without tailing, so it must be complete.
+                sys.stderr.write("Reading piped input until it ends...\n")
+                try:
+                    copy_until_eof(sys.stdin.fileno(), temp_file)
+                except KeyboardInterrupt:
+                    sys.exit(130)
+
+            signal.signal(signal.SIGINT, request_exit)
+            signal.signal(signal.SIGTERM, request_exit)
+
             # Get input directly from /dev/tty to free up stdin
             with open("/dev/tty", "rb", buffering=0) as tty_stdin:
                 # Launch a new process to render the UI
                 with subprocess.Popen(
-                    [sys.argv[0], temp_file.name, *time_range_args(since, until)],
+                    child_argv(sys.argv[0], temp_file.name, since, until, output_merge),
                     stdin=tty_stdin,
                     close_fds=True,
                     env={**os.environ, "TEXTUAL_ALLOW_SIGNALS": "1"},
                 ) as process:
+                    if time_range is not None:
+                        process.wait()
+                        return
 
                     # Current process copies from stdin to the temp file
                     selector = selectors.SelectSelector()
