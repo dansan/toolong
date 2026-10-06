@@ -1,5 +1,20 @@
+variables:
+  RUN_RENOVATE:
+    value: "no"
+    options:
+      - "yes"
+      - "no"
+    description: "Set to yes to run Renovate instead of the pipeline"
+
+include:
+  - component: $CI_SERVER_FQDN/univention/dev/tooling/ci-components/renovate@2.19.0
+    rules:
+      - if: $RUN_RENOVATE == "yes"
+
 debian-bookworm:
   image: debian:bookworm
+  rules:
+    - if: $RUN_RENOVATE != "yes"
   before_script:
     - apt-get update -qq
     - apt-get install -y -qq --no-install-recommends
