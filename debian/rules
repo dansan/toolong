@@ -1,0 +1,32 @@
+#!/usr/bin/make -f
+
+PRIVATE_DIR = /usr/share/toolong
+STAGE = $(CURDIR)/debian/stage
+
+# poetry-core leaves out files that an enclosing git checkout ignores,
+# e.g. everything when building in the ignored build/ of this repository.
+export GIT_CEILING_DIRECTORIES = $(CURDIR)/..
+
+%:
+	dh $@ --with python3
+
+# textual and rich come from the component tarballs (debian/README.source).
+override_dh_auto_build:
+	python3 -m pip install --no-deps --no-index --no-build-isolation \
+		--no-compile --no-cache-dir --target $(STAGE) . textual/ rich/
+	rm -rf $(STAGE)/bin $(STAGE)/*.dist-info/direct_url.json
+
+override_dh_auto_test:
+ifeq (,$(filter nocheck,$(DEB_BUILD_OPTIONS)))
+	PYTHONPATH=$(STAGE):$(CURDIR)/tests python3 -m pytest -p no:cacheprovider tests
+endif
+
+override_dh_auto_install:
+	mkdir -p debian/toolong$(PRIVATE_DIR)
+	cp -a $(STAGE)/. debian/toolong$(PRIVATE_DIR)/
+	install -D -m 755 debian/tl debian/toolong/usr/bin/tl
+
+# Dependencies are listed in debian/control: guessing them from the bundled
+# metadata would add the too-old python3-rich and python3-textual.
+override_dh_python3:
+	dh_python3 --no-guessing-deps $(PRIVATE_DIR)

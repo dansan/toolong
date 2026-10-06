@@ -1,0 +1,35 @@
+#!/bin/sh
+# Build the source package (.dsc and tarballs) for the version in
+# debian/changelog from git HEAD and the bundled PyPI sdists.
+# Usage: debian/build-source-package [OUTPUT_DIR]   (default: ..)
+set -eu
+
+TEXTUAL_VERSION=0.58.0
+RICH_VERSION=13.7.1
+
+cd "$(dirname "$0")/.."
+out=$(realpath "${1:-..}")
+upstream=$(dpkg-parsechangelog -S Version | sed 's/-[^-]*$//')
+orig="$out/toolong_$upstream.orig"
+
+git archive --format=tar.gz --prefix="toolong-$upstream/" \
+	-o "$orig.tar.gz" HEAD -- . ':(exclude)debian'
+
+fetch() {
+	curl -fsSL -o "$orig-$1.tar.gz" \
+		"https://files.pythonhosted.org/packages/source/$(echo "$1" | cut -c1)/$1/$1-$2.tar.gz"
+}
+fetch textual "$TEXTUAL_VERSION"
+fetch rich "$RICH_VERSION"
+
+tree=$(mktemp -d)
+trap 'rm -rf "$tree"' EXIT
+src="$tree/toolong-$upstream"
+mkdir "$src" "$src/textual" "$src/rich"
+tar -xzf "$orig.tar.gz" -C "$src" --strip-components=1
+tar -xzf "$orig-textual.tar.gz" -C "$src/textual" --strip-components=1
+tar -xzf "$orig-rich.tar.gz" -C "$src/rich" --strip-components=1
+cp -a debian "$src/"
+ln -s "$orig"*.tar.gz "$tree/"
+(cd "$tree" && dpkg-source -b "toolong-$upstream")
+mv "$tree"/*.dsc "$tree"/*.debian.tar.* "$out/"
