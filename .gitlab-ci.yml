@@ -1,0 +1,24 @@
+debian-bookworm:
+  image: debian:bookworm
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends
+        ca-certificates curl devscripts dpkg-dev equivs git lintian
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+  script:
+    - mkdir build
+    - debian/build-source-package build
+    - cd build
+    - dpkg-source -x toolong_*.dsc src
+    - cd src
+    - mk-build-deps -i -r -t "apt-get -y -qq --no-install-recommends" debian/control
+    - dpkg-buildpackage -us -uc
+    - cd ..
+    - lintian --fail-on error *.changes
+    - apt-get install -y -qq ./toolong_*_all.deb
+    - tl --version
+  artifacts:
+    paths:
+      - build/*.deb
+      - build/*.dsc
+      - build/*.tar.*
