@@ -38,5 +38,4 @@ Description: terminal log file viewer, tailer and analyzer
  common log formats.
  .
  Debian Bookworm ships textual and rich releases that are too old,
- so this package carries textual 0.58.0 and rich 13.7.1
- in /usr/share/toolong.
+ so this package carries its own copies in /usr/share/toolong.

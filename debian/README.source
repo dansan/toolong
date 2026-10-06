@@ -11,7 +11,9 @@ and /usr/bin/tl puts that directory first on `sys.path`.
 
 `debian/build-source-package [OUTPUT_DIR]` builds the source package
 from `debian/` in the working tree, the upstream source at `git HEAD`,
-and the textual and rich sdists on PyPI.
+and the PyPI sdists of the textual and rich versions in HEAD's `poetry.lock`,
+checked against the sha256 hashes there.
+Renovate updates `poetry.lock`, which updates the bundled copies.
 Commit changes outside `debian/` first: `git archive` ignores the working tree.
 Build the binary package from the resulting `.dsc`
 with sbuild, or with `dpkg-source -x` and `dpkg-buildpackage`.

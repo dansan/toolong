@@ -1,11 +1,9 @@
 #!/bin/sh
 # Build the source package (.dsc and tarballs) for the version in
-# debian/changelog from git HEAD and the bundled PyPI sdists.
+# debian/changelog from git HEAD and the PyPI sdists of the textual and rich
+# versions in HEAD's poetry.lock.
 # Usage: debian/build-source-package [OUTPUT_DIR]   (default: ..)
 set -eu
-
-TEXTUAL_VERSION=0.58.0
-RICH_VERSION=13.7.1
 
 cd "$(dirname "$0")/.."
 out=$(realpath "${1:-..}")
@@ -15,12 +13,25 @@ orig="$out/toolong_$upstream.orig"
 git archive --format=tar.gz --prefix="toolong-$upstream/" \
 	-o "$orig.tar.gz" HEAD -- . ':(exclude)debian'
 
-fetch() {
-	curl -fsSL -o "$orig-$1.tar.gz" \
-		"https://files.pythonhosted.org/packages/source/$(echo "$1" | cut -c1)/$1/$1-$2.tar.gz"
+# Prints "NAME VERSION SHA256" of the sdist for each package.
+locked_sdists() {
+	git show HEAD:poetry.lock | python3 -c '
+import sys, tomllib
+packages = {p["name"]: p for p in tomllib.load(sys.stdin.buffer)["package"]}
+for name in sys.argv[1:]:
+    p = packages[name]
+    sdist = name + "-" + p["version"] + ".tar.gz"
+    (digest,) = [f["hash"] for f in p["files"] if f["file"] == sdist]
+    print(name, p["version"], digest.removeprefix("sha256:"))
+' "$@"
 }
-fetch textual "$TEXTUAL_VERSION"
-fetch rich "$RICH_VERSION"
+
+sdists=$(locked_sdists textual rich)
+echo "$sdists" | while read -r name version sha256; do
+	curl -fsSL -o "$orig-$name.tar.gz" \
+		"https://files.pythonhosted.org/packages/source/$(echo "$name" | cut -c1)/$name/$name-$version.tar.gz"
+	echo "$sha256  $orig-$name.tar.gz" | sha256sum -c --quiet
+done
 
 tree=$(mktemp -d)
 trap 'rm -rf "$tree"' EXIT
