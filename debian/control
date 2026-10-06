@@ -1,0 +1,41 @@
+Source: toolong
+Section: utils
+Priority: optional
+Maintainer: Daniel Troeder <troeder@univention.de>
+Build-Depends:
+ debhelper-compat (= 13),
+ dh-python,
+ python3,
+ python3-click,
+ python3-linkify-it,
+ python3-markdown-it,
+ python3-mdit-py-plugins,
+ python3-pip,
+ python3-poetry-core,
+ python3-pygments,
+ python3-pytest,
+ python3-typing-extensions,
+ python3-uc-micro,
+Standards-Version: 4.6.2
+Homepage: https://github.com/textualize/toolong
+Rules-Requires-Root: no
+
+Package: toolong
+Architecture: all
+Depends:
+ ${misc:Depends},
+ ${python3:Depends},
+ python3-click,
+ python3-linkify-it,
+ python3-markdown-it,
+ python3-mdit-py-plugins,
+ python3-pygments,
+ python3-typing-extensions,
+ python3-uc-micro,
+Description: terminal log file viewer, tailer and analyzer
+ Toolong views, tails, merges and searches log files in the terminal.
+ It opens large files without loading them into memory and highlights
+ common log formats.
+ .
+ Debian Bookworm ships textual and rich releases that are too old,
+ so this package carries its own copies in /usr/share/toolong.

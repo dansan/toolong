@@ -1,0 +1,6 @@
+toolong (1.5.0+git20261006.180aa69-1) bookworm; urgency=medium
+
+  * Initial package for Debian Bookworm, bundling textual 0.58.0
+    and rich 13.7.1.
+
+ -- Daniel Troeder <troeder@univention.de>  Tue, 06 Oct 2026 12:00:00 +0200

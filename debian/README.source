@@ -1,0 +1,19 @@
+toolong for Debian Bookworm
+===========================
+
+Bookworm's python3-textual (0.1.13) and python3-rich (13.3.1)
+are older than toolong requires.
+The source package therefore has two component tarballs,
+`orig-textual` and `orig-rich`,
+which dpkg-source unpacks into `textual/` and `rich/`.
+debian/rules installs them together with toolong into /usr/share/toolong,
+and /usr/bin/tl puts that directory first on `sys.path`.
+
+`debian/build-source-package [OUTPUT_DIR]` builds the source package
+from `debian/` in the working tree, the upstream source at `git HEAD`,
+and the PyPI sdists of the textual and rich versions in HEAD's `poetry.lock`,
+checked against the sha256 hashes there.
+Renovate updates `poetry.lock`, which updates the bundled copies.
+Commit changes outside `debian/` first: `git archive` ignores the working tree.
+Build the binary package from the resulting `.dsc`
+with sbuild, or with `dpkg-source -x` and `dpkg-buildpackage`.
