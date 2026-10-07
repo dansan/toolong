@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from asyncio import Lock
-from datetime import datetime
+from datetime import datetime, tzinfo
 
 from textual import on
 from textual.app import ComposeResult
@@ -294,17 +294,19 @@ class LogView(Horizontal):
         watcher: WatcherBase,
         can_tail: bool = True,
         time_range: TimeRange | None = None,
+        timezone: tzinfo | None = None,
     ) -> None:
         self.file_paths = file_paths
         self.watcher = watcher
         self.time_range = time_range
+        self.timezone = timezone
         super().__init__()
         self.can_tail = can_tail
 
     def compose(self) -> ComposeResult:
         yield (
             log_lines := LogLines(
-                self.watcher, self.file_paths, self.time_range
+                self.watcher, self.file_paths, self.time_range, self.timezone
             ).data_bind(
                 LogView.tail,
                 LogView.show_line_numbers,

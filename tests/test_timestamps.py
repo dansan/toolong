@@ -78,3 +78,29 @@ def german_time_locale():
 )
 def test_english_month_names_parse_in_any_locale(german_time_locale, line, expected):
     assert TimestampScanner().scan(line) == expected
+
+
+@pytest.mark.parametrize(
+    ("line", "expected"),
+    [
+        ("06.10.26 23:20:33.803  DEBUG_INIT", datetime(2026, 10, 6, 23, 20, 33, 803000)),
+        ("13.08.2008 13:13:57.123 LISTENER    (ERROR  ): x", datetime(2008, 8, 13, 13, 13, 57, 123000)),
+    ],
+)
+def test_scanner_reads_deprecated_univention_debug_timestamps(line, expected):
+    assert TimestampScanner().scan(line) == expected
+
+
+def test_scanner_puts_timestamps_without_offset_in_the_given_timezone():
+    berlin = timezone(timedelta(hours=2))
+    scanner = TimestampScanner(timezone=berlin)
+    assert scanner.scan("06.10.26 23:20:33.803  DEBUG_INIT") == datetime(
+        2026, 10, 6, 23, 20, 33, 803000, tzinfo=berlin
+    )
+
+
+def test_scanner_keeps_the_offset_of_aware_timestamps_with_a_timezone():
+    scanner = TimestampScanner(timezone=timezone(timedelta(hours=2)))
+    timestamp = scanner.scan("2026-10-02T09:38:28.970+00:00 INFO     [-] x")
+    assert timestamp is not None
+    assert timestamp.utcoffset() == timedelta(0)

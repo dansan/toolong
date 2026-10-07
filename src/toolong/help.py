@@ -91,6 +91,15 @@ See `tl --help` for the time format.
 $ tl app.log --since 2026-10-02T09:00 --until 2026-10-02
 ```
 
+#### Time zone
+
+Timestamps without a UTC offset, in log lines and in `--since` / `--until`, are read in the time zone set with `--timezone`.
+The default is `Europe/Berlin`.
+
+```bash
+$ tl app.log --timezone UTC
+```
+
 ### Pointer mode
 
 Pointer mode lets you navigate by line.

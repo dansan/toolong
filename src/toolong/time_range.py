@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone, tzinfo
 from typing import TypeVar
 
 _DATE_ONLY = re.compile(r"\d{4}-\d{2}-\d{2}")
+_UTC_OFFSET = re.compile(r"(?:UTC)?([+-])(\d{1,2})(?::?(\d{2}))?")
+DEFAULT_TIMEZONE = "Europe/Berlin"
 
 Item = TypeVar("Item")
 
@@ -23,6 +25,27 @@ def parse_time(text: str) -> datetime:
         raise ValueError(f"not an ISO 8601 date or date and time: {text!r}") from None
 
 
+def parse_timezone(text: str) -> tzinfo:
+    """Parse an IANA time zone name (`Europe/Berlin`), `UTC`, or an offset (`+02:00`, `UTC+2`)."""
+    name = text.strip()
+    if name.upper() in ("UTC", "Z"):
+        return timezone.utc
+    if match := _UTC_OFFSET.fullmatch(name):
+        sign, hours, minutes = match.groups()
+        offset = timedelta(hours=int(hours), minutes=int(minutes or 0))
+        if offset >= timedelta(hours=24):
+            raise ValueError(f"not a time zone: {text!r}")
+        return timezone(-offset if sign == "-" else offset)
+    try:
+        from zoneinfo import ZoneInfo
+    except ImportError:  # Python 3.8
+        raise ValueError(f"time zone names need Python 3.9 or later: {text!r}") from None
+    try:
+        return ZoneInfo(name)
+    except (KeyError, ValueError):
+        raise ValueError(f"not a time zone: {text!r}") from None
+
+
 @dataclass(frozen=True)
 class TimeRange:
     """Bounds in seconds since the epoch. `since` is inclusive; so is `until` unless `until_exclusive`."""
@@ -33,19 +56,28 @@ class TimeRange:
     description: str = field(default="", compare=False)
 
     @classmethod
-    def from_strings(cls, since: str | None, until: str | None) -> TimeRange | None:
+    def from_strings(
+        cls, since: str | None, until: str | None, zone: tzinfo | None = None
+    ) -> TimeRange | None:
         """Parse `--since` / `--until`; None when neither is given.
 
-        Times without a UTC offset are local time. An `until` date without a time
-        includes that whole day.
+        Times without a UTC offset are in `zone`, or local time without one. An
+        `until` date without a time includes that whole day.
         """
         if since is None and until is None:
             return None
-        since_seconds = None if since is None else parse_time(since).timestamp()
+
+        def parse(text: str) -> datetime:
+            moment = parse_time(text)
+            if moment.tzinfo is None and zone is not None:
+                moment = moment.replace(tzinfo=zone)
+            return moment
+
+        since_seconds = None if since is None else parse(since).timestamp()
         until_seconds = None
         until_exclusive = False
         if until is not None:
-            moment = parse_time(until)
+            moment = parse(until)
             if _DATE_ONLY.fullmatch(until.strip()):
                 moment += timedelta(days=1)
                 until_exclusive = True

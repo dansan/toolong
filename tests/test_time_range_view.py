@@ -8,7 +8,7 @@ from pilot_helpers import scanned_log_lines
 from toolong.log_file import LogFile
 from toolong.log_lines import LogLines
 from toolong.log_view import LogView
-from toolong.time_range import TimeRange
+from toolong.time_range import TimeRange, parse_timezone
 from toolong.ui import UI
 
 DAY = TimeRange.from_strings("2026-10-02T00:00:00Z", "2026-10-02T23:59:59.999Z")
@@ -218,3 +218,23 @@ def test_lines_before_the_first_timestamp_in_a_later_batch_get_that_timestamp(tm
 
     run_ui(UI([write(tmp_path, "late.log", lines)], time_range=DAY), check)
     run_ui(UI([write(tmp_path, "kept.log", lines_with_early_start)], time_range=early_range), check_kept)
+
+
+def test_timezone_places_deprecated_timestamps_without_offset(tmp_path):
+    lines = [
+        "2026-10-06T23:20:32.717678+02:00     INIT ",
+        "06.10.26 23:20:33.803  DEBUG_INIT",
+        "2026-10-06T23:20:34.000000+02:00     INFO [         -] Started.\t| pid=1 func=main.run:1",
+    ]
+    path = write(tmp_path, "udm.log", lines)
+    # 21:20:33Z to 21:20:33.900Z contains the DEBUG_INIT line only if it is Berlin time.
+    time_range = TimeRange.from_strings("2026-10-06T21:20:33Z", "2026-10-06T21:20:33.900Z")
+
+    def check_berlin(app: UI, log_lines: LogLines) -> None:
+        assert shown(log_lines) == [lines[1]]
+
+    def check_utc(app: UI, log_lines: LogLines) -> None:
+        assert shown(log_lines) == []
+
+    run_ui(UI([path], time_range=time_range, timezone=parse_timezone("Europe/Berlin")), check_berlin)
+    run_ui(UI([path], time_range=time_range, timezone=parse_timezone("UTC")), check_utc)

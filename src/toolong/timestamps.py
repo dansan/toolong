@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, tzinfo
 import re
 from typing import Callable, NamedTuple
 
@@ -116,13 +116,23 @@ TIMESTAMP_FORMATS = [
         r"\d{2}\/\w+\/\d{4}:\d{2}:\d{2}:\d{2} [+-]\d{4}",
         parse_timestamp("%d/%b/%Y:%H:%M:%S %z"),
     ),
+    # Deprecated univention-debug format, written with 2-digit (C) or 4-digit (Python) years.
+    TimestampFormat(
+        r"(?<![\d.])\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}\.\d{3}",
+        parse_timestamp("%d.%m.%Y %H:%M:%S.%f"),
+    ),
+    TimestampFormat(
+        r"(?<![\d.])\d{2}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}\.\d{3}",
+        parse_timestamp("%d.%m.%y %H:%M:%S.%f"),
+    ),
+    # Epoch seconds are an instant; astimezone() keeps a configured time zone from shifting them.
     TimestampFormat(
         r"\d{10}\.\d+",
-        lambda s: datetime.fromtimestamp(float(s)),
+        lambda s: datetime.fromtimestamp(float(s)).astimezone(),
     ),
     TimestampFormat(
         r"\d{13}",
-        lambda s: datetime.fromtimestamp(int(s)),
+        lambda s: datetime.fromtimestamp(int(s)).astimezone(),
     ),
 ]
 
@@ -143,8 +153,15 @@ def parse(line: str) -> tuple[TimestampFormat | None, datetime | None]:
 class TimestampScanner:
     """Scan a line for something that looks like a timestamp."""
 
-    def __init__(self) -> None:
+    def __init__(self, timezone: tzinfo | None = None) -> None:
+        """`timezone` is given to timestamps without a UTC offset; they stay naive without it."""
         self._timestamp_formats = TIMESTAMP_FORMATS.copy()
+        self._timezone = timezone
+
+    def _localize(self, timestamp: datetime | None) -> datetime | None:
+        if timestamp is None or timestamp.tzinfo is not None or self._timezone is None:
+            return timestamp
+        return timestamp.replace(tzinfo=self._timezone)
 
     def scan(self, line: str) -> datetime | None:
         """Scan a line.
@@ -175,8 +192,8 @@ class TimestampScanner:
                     del self._timestamp_formats[index : index + 1]
                     self._timestamp_formats.insert(0, timestamp_format)
 
-                return timestamp
-        return naive_fallback
+                return self._localize(timestamp)
+        return self._localize(naive_fallback)
 
 
 if __name__ == "__main__":

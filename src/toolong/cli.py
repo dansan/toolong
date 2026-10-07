@@ -8,7 +8,7 @@ from typing import IO
 
 import click
 
-from toolong.time_range import TimeRange, parse_time
+from toolong.time_range import DEFAULT_TIMEZONE, TimeRange, parse_time, parse_timezone
 from toolong.ui import UI
 
 
@@ -18,9 +18,10 @@ def child_argv(
     since: str | None,
     until: str | None,
     output_merge: str | None,
+    timezone: str,
 ) -> list[str]:
     """Command line for the child process that shows the piped input saved in `path`."""
-    argv = [program, path]
+    argv = [program, path, "--timezone", timezone]
     if since is not None:
         argv += ["--since", since]
     if until is not None:
@@ -48,6 +49,14 @@ def check_time(ctx: click.Context, param: click.Parameter, value: str | None) ->
     return value
 
 
+def check_timezone(ctx: click.Context, param: click.Parameter, value: str) -> str:
+    try:
+        parse_timezone(value)
+    except ValueError as error:
+        raise click.BadParameter(str(error)) from None
+    return value
+
+
 @click.command()
 @click.version_option(version("toolong"))
 @click.argument("files", metavar="FILE1 FILE2", nargs=-1)
@@ -65,7 +74,7 @@ def check_time(ctx: click.Context, param: click.Parameter, value: str | None) ->
     callback=check_time,
     help=(
         "Show only lines at or after TIME, an ISO 8601 date (YYYY-MM-DD) or date and time,"
-        " e.g. 2026-10-02 or 2026-10-02T09:30. Without a UTC offset, TIME is local time."
+        " e.g. 2026-10-02 or 2026-10-02T09:30. Without a UTC offset, TIME is in the --timezone zone."
     ),
 )
 @click.option(
@@ -77,16 +86,29 @@ def check_time(ctx: click.Context, param: click.Parameter, value: str | None) ->
         " A date alone (YYYY-MM-DD) includes that whole day."
     ),
 )
+@click.option(
+    "--timezone",
+    metavar="ZONE",
+    default=DEFAULT_TIMEZONE,
+    show_default=True,
+    callback=check_timezone,
+    help=(
+        "Time zone of timestamps without a UTC offset, in log lines and in --since/--until:"
+        " a name like Europe/Berlin, UTC, or an offset like +02:00."
+    ),
+)
 def run(
     files: list[str],
     merge: bool,
     output_merge: str | None,
     since: str | None,
     until: str | None,
+    timezone: str,
 ) -> None:
     """View / tail / search log files."""
+    zone = parse_timezone(timezone)
     try:
-        time_range = TimeRange.from_strings(since, until)
+        time_range = TimeRange.from_strings(since, until, zone)
     except ValueError as error:
         raise click.UsageError(str(error)) from None
     stdin_tty = stdin_is_tty()
@@ -96,7 +118,13 @@ def run(
         ctx.exit()
     if stdin_tty:
         try:
-            ui = UI(files, merge=merge, save_merge=output_merge, time_range=time_range)
+            ui = UI(
+                files,
+                merge=merge,
+                save_merge=output_merge,
+                time_range=time_range,
+                timezone=zone,
+            )
             ui.run()
         except Exception:
             pass
@@ -130,7 +158,7 @@ def run(
             with open("/dev/tty", "rb", buffering=0) as tty_stdin:
                 # Launch a new process to render the UI
                 with subprocess.Popen(
-                    child_argv(sys.argv[0], temp_file.name, since, until, output_merge),
+                    child_argv(sys.argv[0], temp_file.name, since, until, output_merge, timezone),
                     stdin=tty_stdin,
                     close_fds=True,
                     env={**os.environ, "TEXTUAL_ALLOW_SIGNALS": "1"},

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import tzinfo
 import locale
 
 from pathlib import Path
@@ -53,6 +54,7 @@ class LogScreen(Screen):
                             self.app.watcher,
                             can_tail=False,
                             time_range=self.app.time_range,
+                            timezone=self.app.timezone,
                         )
                     )
             else:
@@ -64,6 +66,7 @@ class LogScreen(Screen):
                                 self.app.watcher,
                                 can_tail=self.app.time_range is None,
                                 time_range=self.app.time_range,
+                                timezone=self.app.timezone,
                             )
                         )
 
@@ -118,11 +121,13 @@ class UI(App):
         merge: bool = False,
         save_merge: str | None = None,
         time_range: TimeRange | None = None,
+        timezone: tzinfo | None = None,
     ) -> None:
         self.file_paths = self.sort_paths(file_paths)
         self.merge = merge
         self.save_merge = save_merge
         self.time_range = time_range
+        self.timezone = timezone
         self.watcher = get_watcher()
         super().__init__()
 

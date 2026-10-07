@@ -45,7 +45,7 @@ from textual.worker import Worker, get_current_worker
 import mmap
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 from typing import Iterable, Literal, Mapping
 
 SPLIT_REGEX = r"[\s/\[\]\(\)\"\/]"
@@ -208,12 +208,13 @@ class LogLines(ScrollView, inherit_bindings=False):
         watcher: WatcherBase,
         file_paths: list[str],
         time_range: TimeRange | None = None,
+        timezone: tzinfo | None = None,
     ) -> None:
         super().__init__()
         self.watcher = watcher
         self.file_paths = file_paths
         self.time_range = time_range
-        self.log_files = [LogFile(path) for path in file_paths]
+        self.log_files = [LogFile(path, timezone) for path in file_paths]
         self._render_line_cache: LRUCache[
             tuple[LogFile, int, int, bool, str], Strip
         ] = LRUCache(maxsize=1000)

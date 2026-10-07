@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, tzinfo
 import os
 import mmap
 import mimetypes
@@ -27,13 +27,13 @@ class LogError(Exception):
 class LogFile:
     """A single log file."""
 
-    def __init__(self, path: str) -> None:
+    def __init__(self, path: str, timezone: tzinfo | None = None) -> None:
         self.path = Path(path)
         self.name = self.path.name
         self.file: IO[bytes] | None = None
         self.size = 0
         self.can_tail = False
-        self.timestamp_scanner = TimestampScanner()
+        self.timestamp_scanner = TimestampScanner(timezone)
         self.format_parser = FormatParser()
         self._lock = Lock()
 

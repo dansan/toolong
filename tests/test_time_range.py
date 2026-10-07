@@ -1,8 +1,8 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from toolong.time_range import TimeRange, fill_missing_timestamps
+from toolong.time_range import TimeRange, fill_missing_timestamps, parse_timezone
 
 
 def utc(*args: int) -> float:
@@ -73,3 +73,37 @@ def test_fill_missing_timestamps_without_any_timestamp():
     lines = [(0.0, 0, "a"), (0.0, 1, "a")]
     fill_missing_timestamps(lines)
     assert [seconds for seconds, _, _ in lines] == [0.0, 0.0]
+
+
+@pytest.mark.parametrize(
+    ("text", "offset"),
+    [("UTC", timedelta(0)), ("+02:00", timedelta(hours=2)), ("-0530", timedelta(hours=-5, minutes=-30)), ("UTC+2", timedelta(hours=2))],
+)
+def test_parse_timezone_offsets(text, offset):
+    assert parse_timezone(text).utcoffset(datetime(2026, 1, 1)) == offset
+
+
+def test_parse_timezone_names_follow_daylight_saving_time():
+    berlin = parse_timezone("Europe/Berlin")
+    assert berlin.utcoffset(datetime(2026, 1, 15)) == timedelta(hours=1)
+    assert berlin.utcoffset(datetime(2026, 7, 15)) == timedelta(hours=2)
+
+
+@pytest.mark.parametrize("text", ["Mars/Olympus", "", "+25:00", "../etc/passwd"])
+def test_parse_timezone_rejects_unknown_zones(text):
+    with pytest.raises(ValueError, match="time zone"):
+        parse_timezone(text)
+
+
+def test_bounds_without_offset_use_the_given_timezone():
+    berlin = parse_timezone("Europe/Berlin")
+    time_range = TimeRange.from_strings("2026-10-02T09:00", "2026-10-02", berlin)
+    assert time_range is not None
+    assert time_range.since == utc(2026, 10, 2, 7)
+    assert time_range.until == utc(2026, 10, 2, 22)
+
+
+def test_bounds_with_offset_ignore_the_given_timezone():
+    time_range = TimeRange.from_strings("2026-10-02T09:00Z", None, parse_timezone("Europe/Berlin"))
+    assert time_range is not None
+    assert time_range.since == utc(2026, 10, 2, 9)
