@@ -41,7 +41,7 @@ Repository: [https://github.com/Textualize/toolong](https://github.com/Textualiz
 - `ctrl+l` Toggle line numbers.
 - `ctrl+t` Tail current file.
 - `ctrl+c` Exit the app.
-- `y`      Copy (yank) current line in pointer mode
+- `y` Copy (yank) current line in pointer mode.
 
 ### Find
 
@@ -110,6 +110,7 @@ To enter pointer mode, press `enter` or click a line.
 When in pointer mode, the navigation keys will move this pointer rather than scroll the log file.
 
 Press `y` to copy (yank) the current line to the system clipboard.
+Copying uses the terminal's clipboard support (OSC 52), which some terminals and tmux configurations do not enable.
 
 Press `enter` again or click the line a second time to expand the line in to a new panel.
 
