@@ -3,7 +3,6 @@ from __future__ import annotations
 from importlib.metadata import version
 import os
 import sys
-import time
 from datetime import tzinfo
 from typing import IO
 
@@ -192,5 +191,8 @@ def run(
                                 if line := os.read(sys.stdin.fileno(), 1024 * 64):
                                     temp_file.write(line)
                                 else:
-                                    time.sleep(0.005)  # sleep 5 ms to avoid maxing CPU usage
+                                    # EOF: stdin stays readable forever, so
+                                    # stop polling it and wait for the UI.
+                                    selector.unregister(sys.stdin.fileno())
+                                    process.wait()
                                     break
