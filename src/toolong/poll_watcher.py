@@ -9,10 +9,12 @@ from toolong.watcher import WatcherBase
 
 class PollWatcher(WatcherBase):
     """A watcher that simply polls."""
+    interval = 0.25
 
     def run(self) -> None:
         chunk_size = 64 * 1024
         scan_chunk = self.scan_chunk
+        interval = self.interval
 
         while not self._exit_event.is_set():
             successful_read = False
@@ -30,4 +32,4 @@ class PollWatcher(WatcherBase):
                     break
             else:
                 if not successful_read:
-                    time.sleep(0.05)
+                    time.sleep(interval)
