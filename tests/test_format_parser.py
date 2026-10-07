@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
+import time
 
 import pytest
 from rich.text import Text
 
-from toolong.format_parser import FormatParser
+from toolong.format_parser import CombinedLogFormat, FormatParser
 
 LINE = (
     "2026-10-02T09:38:28.970+00:00 WARNING  [         -] Disk almost full.\t| free_mb=12 _source=disk.check:7"
@@ -98,3 +99,26 @@ def test_univention_debug_init_and_exit_lines_are_gray(marker):
 def test_univention_debug_lines_with_numeric_levels_are_recognized():
     timestamp, _, _ = FormatParser().parse("06.10.26 23:20:33.803  LISTENER    ( 7       ) : Message")
     assert timestamp == datetime(2026, 10, 6, 23, 20, 33, 803000)
+
+
+def test_very_long_line_parses_quickly():
+    start = time.perf_counter()
+    timestamp, _, _ = FormatParser().parse("x " * 200_000)
+    assert time.perf_counter() - start < 5
+    assert timestamp is None
+
+
+def test_common_log_line_is_still_recognized():
+    timestamp, _, _ = FormatParser().parse(
+        '127.0.0.1 - - [02/Oct/2026:09:38:28 +0000] "GET /index.html HTTP/1.1" 200 512 "-"'
+    )
+    assert timestamp == datetime(2026, 10, 2, 9, 38, 28, tzinfo=timezone.utc)
+
+
+def test_long_combined_log_line_is_recognized_and_shown_in_full():
+    line = (
+        '127.0.0.1 - - [02/Oct/2026:09:38:28 +0000] "GET /index.html HTTP/1.1" 200 512 "-" "curl/8.0" - 42 '
+        + "host" * 1000
+    )
+    _, _, text = CombinedLogFormat().parse(line)
+    assert text.plain == line
