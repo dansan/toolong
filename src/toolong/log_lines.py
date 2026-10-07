@@ -143,6 +143,7 @@ class LogLines(ScrollView, inherit_bindings=False):
         Binding("pagedown,space", "page_down", "Page Down", show=False),
         Binding("enter", "select", "Select line", show=False),
         Binding("escape", "dismiss", "Dismiss", show=False, priority=True),
+        Binding("y", "copy", "Copy (yank) current selection", show=False),
         Binding("m", "navigate(+1, 'm')"),
         Binding("M", "navigate(-1, 'm')"),
         Binding("o", "navigate(+1, 'h')"),
@@ -979,6 +980,13 @@ class LogLines(ScrollView, inherit_bindings=False):
 
         self.pointer_line = line_no
         self.scroll_pointer_to_center(animate=abs(initial_line_no - line_no) < 100)
+
+    def action_copy(self) -> None:
+        if self.pointer_line is not None:
+            line = self.get_line_from_index(self.pointer_line)
+            if line is not None:
+                self.app.copy_to_clipboard(line)
+                self.app.notify("Copied the line to the clipboard.")
 
     def watch_tail(self, tail: bool) -> None:
         self.set_class(tail, "-tail")
