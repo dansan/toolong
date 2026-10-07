@@ -1,7 +1,9 @@
 import asyncio
 
+import pytest
 from textual.widgets import Input
 
+import toolong.ui
 from pilot_helpers import scanned_log_lines
 from toolong.ui import UI
 
@@ -205,5 +207,36 @@ def test_y_is_typed_into_find_and_does_not_copy_from_go_to(tmp_path):
             await pilot.pause()
             assert isinstance(app.focused, Input)
             assert copied == []
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("copied_locally", "message"),
+    [(True, "Copied to the clipboard."), (False, "Sent to the terminal's clipboard (OSC 52).")],
+)
+def test_y_also_copies_with_local_tools_and_says_how(tmp_path, monkeypatch, copied_locally, message):
+    path = tmp_path / "app.log"
+    path.write_text("first line\nsecond line\n")
+    local_copies: list[str] = []
+
+    def copy_with_local_tools(text: str) -> bool:
+        local_copies.append(text)
+        return copied_locally
+
+    monkeypatch.setattr(toolong.ui, "copy_with_local_tools", copy_with_local_tools)
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        notifications: list[str] = []
+        app.notify = lambda message, **kwargs: notifications.append(message)
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("g", "enter", "y")
+            await app.workers.wait_for_complete()
+            await pilot.pause()
+            assert local_copies == ["first line"]
+            assert notifications == [message]
 
     asyncio.run(scenario())
