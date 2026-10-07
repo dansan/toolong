@@ -77,3 +77,42 @@ def test_find_skips_blank_lines(tmp_path):
             assert log_lines.pointer_line == 2
 
     asyncio.run(scenario())
+
+
+def test_g_scrolls_to_the_top_and_capital_g_to_the_end(tmp_path):
+    path = tmp_path / "long.log"
+    path.write_text("".join(f"line {number}\n" for number in range(200)))
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("G")
+            await pilot.pause()
+            assert log_lines.scroll_offset.y == log_lines.max_scroll_y > 0
+            await pilot.press("g")
+            await pilot.pause()
+            assert log_lines.scroll_offset.y == 0
+
+    asyncio.run(scenario())
+
+
+def test_g_and_capital_g_move_the_pointer_to_the_first_and_last_line(tmp_path):
+    path = tmp_path / "long.log"
+    path.write_text("".join(f"line {number}\n" for number in range(200)))
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("enter")
+            await pilot.press("G")
+            await pilot.pause()
+            assert log_lines.pointer_line == log_lines.line_count - 1
+            await pilot.press("g")
+            await pilot.pause()
+            assert log_lines.pointer_line == 0
+
+    asyncio.run(scenario())
