@@ -41,7 +41,7 @@ Repository: [https://github.com/Textualize/toolong](https://github.com/Textualiz
 - `ctrl+l` Toggle line numbers.
 - `ctrl+t` Tail current file.
 - `ctrl+c` Exit the app.
-- `y` Copy (yank) current line in pointer mode.
+- `y` Copy (yank) current line in pointer mode. See section 'Copying' below if it doesn't work.
 
 ### Find
 
@@ -110,11 +110,27 @@ To enter pointer mode, press `enter` or click a line.
 When in pointer mode, the navigation keys will move this pointer rather than scroll the log file.
 
 Press `y` to copy (yank) the current line to the system clipboard.
-Copying uses the terminal's clipboard support (OSC 52), which some terminals and tmux configurations do not enable.
+See *Copying* below if it doesn't work.
 
 Press `enter` again or click the line a second time to expand the line in to a new panel.
 
 Press `escape` to hide the line panel if it is visible, or to leave pointer mode if the line panel is not visible.
+
+### Copying
+
+`y` sends the line to the terminal's clipboard with the OSC 52 escape sequence.
+It also copies the line with `wl-copy` on Wayland, and with `xclip` or `xsel` on Xorg, if they are installed.
+
+If copying doesn't work, your terminal most likely doesn't support OSC 52.
+That is the case for VTE-based terminals, such as GNOME Terminal, Ptyxis and Tilix.
+Install a clipboard tool:
+
+- Wayland: `wl-copy`, from the Debian/Ubuntu package `wl-clipboard`.
+- Xorg: `xclip` or `xsel`, from the Debian/Ubuntu package `xclip` or `xsel`.
+
+If you are unsure whether you run Wayland or Xorg, install both `wl-clipboard` and `xclip` (or `xsel`).
+
+In tmux, OSC 52 also needs `set -g set-clipboard on`.
 
 
 ### Credits
