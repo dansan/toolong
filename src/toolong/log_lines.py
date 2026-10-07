@@ -986,7 +986,6 @@ class LogLines(ScrollView, inherit_bindings=False):
             line = self.get_line_from_index(self.pointer_line)
             if line is not None:
                 self.app.copy_to_clipboard(line)
-                self.app.notify("Copied the line to the clipboard.")
 
     def watch_tail(self, tail: bool) -> None:
         self.set_class(tail, "-tail")

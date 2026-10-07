@@ -6,12 +6,14 @@ import locale
 from pathlib import Path
 
 from rich import terminal_theme
+from textual import work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.lazy import Lazy
 from textual.screen import Screen
 from textual.widgets import TabbedContent, TabPane
 
+from toolong.clipboard import copy_with_local_tools
 from toolong.log_view import LogView
 from toolong.time_range import TimeRange
 from toolong.watcher import get_watcher
@@ -139,3 +141,16 @@ class UI(App):
 
     def on_unmount(self) -> None:
         self.watcher.close()
+
+    def copy_to_clipboard(self, text: str) -> None:
+        """Copy with OSC 52, and with the local clipboard tools for terminals without it."""
+        super().copy_to_clipboard(text)
+        self.copy_locally(text)
+
+    @work(thread=True)
+    def copy_locally(self, text: str) -> None:
+        if copy_with_local_tools(text):
+            message = "Copied to the clipboard."
+        else:
+            message = "Sent to the terminal's clipboard (OSC 52)."
+        self.call_from_thread(self.notify, message)
