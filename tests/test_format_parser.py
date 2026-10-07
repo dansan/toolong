@@ -56,3 +56,39 @@ def test_other_lines_still_use_the_default_format():
     timestamp, line, text = FormatParser().parse('  record["message"] = x')
     assert timestamp is None
     assert text.plain == line
+
+
+@pytest.mark.parametrize(
+    ("level", "styles"),
+    [("ALL", ["grey50"]), ("PROCESS", []), ("WARN", ["yellow"])],
+)
+def test_univention_debug_level_names_in_lancelog_header(level, styles):
+    line = f"2026-10-02T09:38:28.970+00:00 {level:>8} [         -] Message.\t| k=v".expandtabs(4)
+    _, _, text = FormatParser().parse(line)
+    assert styles_at(text, line.index("Message")) == styles
+
+
+@pytest.mark.parametrize(
+    ("line", "styles"),
+    [
+        ("06.10.26 23:20:33.803  LISTENER    ( PROCESS ) : Message", []),
+        ("06.10.26 23:20:33.803  LISTENER    ( ALL     ) : Message", ["grey50"]),
+        ("06.10.26 23:20:33.803  LISTENER    ( INFO    ) : Message", []),
+        ("06.10.26 23:20:33.803  LISTENER    ( WARN    ) : Message", ["yellow"]),
+        ("06.10.26 23:20:33.803  LISTENER    ( ERROR   ) : Message", ["red"]),
+        ("13.08.2008 13:13:57.123 LISTENER    (ERROR  ): Message", ["red"]),
+    ],
+)
+def test_univention_debug_lines_use_their_level_color(line, styles):
+    _, parsed_line, text = FormatParser().parse(line)
+    assert parsed_line == line
+    assert text.plain == line
+    assert styles_at(text, line.index("Message")) == styles
+
+
+@pytest.mark.parametrize("marker", ["DEBUG_INIT", "DEBUG_EXIT"])
+def test_univention_debug_init_and_exit_lines_are_gray(marker):
+    line = f"06.10.26 23:20:33.803  {marker}"
+    timestamp, _, text = FormatParser().parse(line)
+    assert timestamp == datetime(2026, 10, 6, 23, 20, 33, 803000)
+    assert styles_at(text, line.index(marker)) == ["grey50"]

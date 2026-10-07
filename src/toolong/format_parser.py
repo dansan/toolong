@@ -104,10 +104,14 @@ class JSONLogFormat(LogFormat):
         return timestamp, line, text
 
 
-LANCELOG_LEVEL_STYLES = {
+# Levels without a style (INFO, univention-debug's PROCESS) use the default color.
+# univention-debug names: ALL is DEBUG, PROCESS is INFO, WARN is WARNING.
+LEVEL_STYLES = {
     "TRACE": "grey50",
     "DEBUG": "grey50",
+    "ALL": "grey50",
     "WARNING": "yellow",
+    "WARN": "yellow",
     "ERROR": "red",
     "CRITICAL": "red",
 }
@@ -123,15 +127,45 @@ class LancelogLogFormat(LogFormat):
             return None
         text = Text(line)
         data_start = record.spans.get("separator", (len(line), len(line)))[0]
-        level_style = LANCELOG_LEVEL_STYLES.get(record.level.upper())
+        level_style = LEVEL_STYLES.get(record.level.upper())
         if level_style:
             text.stylize(level_style, 0, data_start)
         text.stylize(LANCELOG_DATA_STYLE, data_start)
         return record.timestamp, line, text
 
 
+class UniventionDebugLogFormat(LogFormat):
+    """Deprecated univention-debug lines, colored by level.
+
+    06.10.26 23:20:33.803  LISTENER    ( PROCESS ) : message   (C library, 2-digit year)
+    13.08.2008 13:13:57.123 LISTENER    (ERROR  ): message      (Python, 4-digit year)
+    06.10.26 23:20:33.803  DEBUG_INIT
+    """
+
+    REGEX = re.compile(
+        r"(?P<date>\d{2}\.\d{2}\.(?P<year>\d{4}|\d{2}) \d{2}:\d{2}:\d{2}\.\d{3}) +"
+        r"(?:\S+ +\( ?(?P<level>[A-Z]+) *\) ?: |(?P<marker>DEBUG_INIT|DEBUG_EXIT)$)"
+    )
+
+    def parse(self, line: str) -> ParseResult | None:
+        match = self.REGEX.match(line)
+        if match is None:
+            return None
+        year = "%Y" if len(match["year"]) == 4 else "%y"
+        try:
+            timestamp = datetime.strptime(match["date"], f"%d.%m.{year} %H:%M:%S.%f")
+        except ValueError:
+            timestamp = None
+        text = Text(line)
+        style = "grey50" if match["marker"] else LEVEL_STYLES.get(match["level"])
+        if style:
+            text.stylize(style)
+        return timestamp, line, text
+
+
 FORMATS = [
     LancelogLogFormat(),
+    UniventionDebugLogFormat(),
     JSONLogFormat(),
     CommonLogFormat(),
     CombinedLogFormat(),
