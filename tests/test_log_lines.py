@@ -1,5 +1,7 @@
 import asyncio
 
+from textual.widgets import Input
+
 from pilot_helpers import scanned_log_lines
 from toolong.ui import UI
 
@@ -141,5 +143,67 @@ def test_tail_scrolls_to_lines_that_arrived_while_not_tailing(tmp_path):
             assert log_lines.tail
             assert log_lines.line_count == 151
             assert log_lines.scroll_offset.y == log_lines.line_count - log_lines.scrollable_content_region.height
+
+    asyncio.run(scenario())
+
+
+def test_y_copies_the_pointer_line_to_the_clipboard(tmp_path):
+    path = tmp_path / "app.log"
+    path.write_text("first line\nsecond line\n")
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        copied: list[str] = []
+        app.copy_to_clipboard = copied.append
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("g", "enter")
+            assert log_lines.pointer_line == 0
+            await pilot.press("y")
+            await pilot.pause()
+            assert copied == ["first line"]
+
+    asyncio.run(scenario())
+
+
+def test_y_without_pointer_copies_nothing(tmp_path):
+    path = tmp_path / "app.log"
+    path.write_text("\n".join(LINES) + "\n")
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        copied: list[str] = []
+        app.copy_to_clipboard = copied.append
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("y")
+            await pilot.pause()
+            assert copied == []
+
+    asyncio.run(scenario())
+
+
+def test_y_is_typed_into_find_and_does_not_copy_from_go_to(tmp_path):
+    path = tmp_path / "app.log"
+    path.write_text("\n".join(LINES) + "\n")
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        copied: list[str] = []
+        app.copy_to_clipboard = copied.append
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("enter", "ctrl+f", "y")
+            await pilot.pause()
+            assert app.screen.query_one("#find-text", Input).value == "y"
+            await pilot.press("escape")
+            log_lines.focus()
+            await pilot.press("ctrl+g", "y")
+            await pilot.pause()
+            assert isinstance(app.focused, Input)
+            assert copied == []
 
     asyncio.run(scenario())
