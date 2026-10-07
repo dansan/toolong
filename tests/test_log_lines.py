@@ -116,3 +116,30 @@ def test_g_and_capital_g_move_the_pointer_to_the_first_and_last_line(tmp_path):
             assert log_lines.pointer_line == 0
 
     asyncio.run(scenario())
+
+
+def test_tail_scrolls_to_lines_that_arrived_while_not_tailing(tmp_path):
+    path = tmp_path / "growing.log"
+    path.write_text("".join(f"line {number}\n" for number in range(100)))
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("g")
+            await pilot.pause()
+            assert not log_lines.tail
+            with path.open("a") as log:
+                log.write("".join(f"new {number}\n" for number in range(50)))
+            for _ in range(40):
+                await pilot.pause(0.05)
+                if len(log_lines._line_breaks[log_lines.log_file]) == 150:
+                    break
+            await pilot.press("ctrl+t")
+            await pilot.pause()
+            assert log_lines.tail
+            assert log_lines.line_count == 151
+            assert log_lines.scroll_offset.y == log_lines.line_count - log_lines.scrollable_content_region.height
+
+    asyncio.run(scenario())
