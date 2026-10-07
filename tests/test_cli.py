@@ -1,5 +1,7 @@
 import io
 import os
+import subprocess
+import sys
 import threading
 import time
 
@@ -137,3 +139,44 @@ def test_unavailable_default_timezone_falls_back_to_local_time(monkeypatch):
     assert result.exit_code == 0, result.output
     assert "Mars/Olympus" in result.output
     assert calls[0]["timezone"] is None
+
+
+def test_piped_input_waits_for_the_ui_after_stdin_ends(monkeypatch):
+    read_fd, write_fd = os.pipe()
+    os.write(write_fd, b"a\nb\n")
+    os.close(write_fd)
+    seen = {}
+
+    class FakeUIProcess:
+        def __init__(self, argv, **kwargs) -> None:
+            self.path = argv[1]
+            self.polls = 0
+            self.returncode = None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args) -> None:
+            pass
+
+        def poll(self):
+            self.polls += 1
+            # Stand-in for the user closing the UI, so the old busy loop also ends.
+            return 0 if self.polls > 500 else self.returncode
+
+        def wait(self):
+            with open(self.path, "rb") as copied:
+                seen["copied"] = copied.read()
+            seen["polls"] = self.polls
+            self.returncode = 0
+            return 0
+
+    monkeypatch.setattr(toolong.cli, "stdin_is_tty", lambda: False)
+    monkeypatch.setattr(toolong.cli, "open", lambda *args, **kwargs: io.BytesIO(), raising=False)
+    monkeypatch.setattr(subprocess, "Popen", FakeUIProcess)
+    monkeypatch.setattr("signal.signal", lambda *args: None)
+    with os.fdopen(read_fd, "rb") as stdin:
+        monkeypatch.setattr(sys, "stdin", stdin)
+        run.main([], standalone_mode=False)
+    assert seen["copied"] == b"a\nb\n"
+    assert seen["polls"] < 10
