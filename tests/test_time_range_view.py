@@ -220,18 +220,29 @@ def test_lines_before_the_first_timestamp_in_a_later_batch_get_that_timestamp(tm
     run_ui(UI([write(tmp_path, "kept.log", lines_with_early_start)], time_range=early_range), check_kept)
 
 
-def test_timezone_places_deprecated_timestamps_without_offset(tmp_path):
+def test_deprecated_timestamps_use_the_offset_of_the_other_records(tmp_path):
     lines = [
-        "2026-10-06T23:20:32.717678+02:00     INIT ",
-        "06.10.26 23:20:33.803  DEBUG_INIT",
-        "2026-10-06T23:20:34.000000+02:00     INFO [         -] Started.\t| pid=1 func=main.run:1",
+        "2026-10-04T05:05:23.470110+00:00     INIT ",
+        "04.10.26 05:05:23.976  DEBUG_INIT",
+        "2026-10-04T05:05:48.000000+00:00     INFO [         -] Started.\t| pid=1 func=main.run:1",
     ]
     path = write(tmp_path, "udm.log", lines)
-    # 21:20:33Z to 21:20:33.900Z contains the DEBUG_INIT line only if it is Berlin time.
+    time_range = TimeRange.from_strings("2026-10-04T05:05:23.900Z", "2026-10-04T05:05:24Z")
+
+    def check(app: UI, log_lines: LogLines) -> None:
+        assert shown(log_lines) == [lines[1]]
+
+    run_ui(UI([path], time_range=time_range, timezone=parse_timezone("Europe/Berlin")), check)
+
+
+def test_timezone_places_files_with_only_deprecated_timestamps(tmp_path):
+    lines = ["06.10.26 23:20:33.803  DEBUG_INIT", "06.10.26 23:20:34.000  LISTENER    ( PROCESS ) : x"]
+    path = write(tmp_path, "old.log", lines)
+    # 21:20:33Z to 21:20:33.900Z contains the first line only if it is Berlin time.
     time_range = TimeRange.from_strings("2026-10-06T21:20:33Z", "2026-10-06T21:20:33.900Z")
 
     def check_berlin(app: UI, log_lines: LogLines) -> None:
-        assert shown(log_lines) == [lines[1]]
+        assert shown(log_lines) == [lines[0]]
 
     def check_utc(app: UI, log_lines: LogLines) -> None:
         assert shown(log_lines) == []

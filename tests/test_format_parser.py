@@ -77,6 +77,7 @@ def test_univention_debug_level_names_in_lancelog_header(level, styles):
         ("06.10.26 23:20:33.803  LISTENER    ( WARN    ) : Message", ["yellow"]),
         ("06.10.26 23:20:33.803  LISTENER    ( ERROR   ) : Message", ["red"]),
         ("13.08.2008 13:13:57.123 LISTENER    (ERROR  ): Message", ["red"]),
+        ("06.10.26 23:20:33.803  LISTENER    ( 7       ) : Message", []),
     ],
 )
 def test_univention_debug_lines_use_their_level_color(line, styles):
@@ -92,3 +93,8 @@ def test_univention_debug_init_and_exit_lines_are_gray(marker):
     timestamp, _, text = FormatParser().parse(line)
     assert timestamp == datetime(2026, 10, 6, 23, 20, 33, 803000)
     assert styles_at(text, line.index(marker)) == ["grey50"]
+
+
+def test_univention_debug_lines_with_numeric_levels_are_recognized():
+    timestamp, _, _ = FormatParser().parse("06.10.26 23:20:33.803  LISTENER    ( 7       ) : Message")
+    assert timestamp == datetime(2026, 10, 6, 23, 20, 33, 803000)

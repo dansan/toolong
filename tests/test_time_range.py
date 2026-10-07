@@ -89,7 +89,7 @@ def test_parse_timezone_names_follow_daylight_saving_time():
     assert berlin.utcoffset(datetime(2026, 7, 15)) == timedelta(hours=2)
 
 
-@pytest.mark.parametrize("text", ["Mars/Olympus", "", "+25:00", "../etc/passwd"])
+@pytest.mark.parametrize("text", ["Mars/Olympus", "", "+25:00", "+02:75", "../etc/passwd"])
 def test_parse_timezone_rejects_unknown_zones(text):
     with pytest.raises(ValueError, match="time zone"):
         parse_timezone(text)
@@ -107,3 +107,14 @@ def test_bounds_with_offset_ignore_the_given_timezone():
     time_range = TimeRange.from_strings("2026-10-02T09:00Z", None, parse_timezone("Europe/Berlin"))
     assert time_range is not None
     assert time_range.since == utc(2026, 10, 2, 9)
+
+
+def test_parse_timezone_local_means_the_machine_time_zone():
+    assert parse_timezone("local") is None
+
+
+def test_until_date_ends_at_local_midnight_across_a_daylight_saving_change():
+    berlin = parse_timezone("Europe/Berlin")
+    time_range = TimeRange.from_strings(None, "2026-10-25", berlin)
+    assert time_range is not None
+    assert time_range.until == utc(2026, 10, 25, 23)

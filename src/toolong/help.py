@@ -93,8 +93,10 @@ $ tl app.log --since 2026-10-02T09:00 --until 2026-10-02
 
 #### Time zone
 
-Timestamps without a UTC offset, in log lines and in `--since` / `--until`, are read in the time zone set with `--timezone`.
-The default is `Europe/Berlin`.
+A log line whose timestamp has no UTC offset, like the deprecated `06.10.26 23:20:33.803  DEBUG_INIT`,
+gets the offset of the last timestamp with one in the same file.
+In files without such timestamps, and in `--since` / `--until`, the time zone set with `--timezone` is used.
+The default is `Europe/Berlin`; `--timezone local` uses the machine's time zone.
 
 ```bash
 $ tl app.log --timezone UTC

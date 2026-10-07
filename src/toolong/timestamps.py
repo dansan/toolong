@@ -10,6 +10,8 @@ from toolong.lancelog import parse_timestamp as parse_lancelog_timestamp
 class TimestampFormat(NamedTuple):
     regex: str
     parser: Callable[[str], datetime | None]
+    # False when an aware result doesn't come from an offset in the text (epoch seconds).
+    shows_offset: bool = True
 
 
 # strptime's %b expects month names in the LC_TIME locale, which ui.py sets
@@ -129,10 +131,12 @@ TIMESTAMP_FORMATS = [
     TimestampFormat(
         r"\d{10}\.\d+",
         lambda s: datetime.fromtimestamp(float(s)).astimezone(),
+        shows_offset=False,
     ),
     TimestampFormat(
         r"\d{13}",
         lambda s: datetime.fromtimestamp(int(s)).astimezone(),
+        shows_offset=False,
     ),
 ]
 
@@ -140,7 +144,7 @@ TIMESTAMP_FORMATS = [
 def parse(line: str) -> tuple[TimestampFormat | None, datetime | None]:
     """Attempt to parse a timestamp."""
     for timestamp in TIMESTAMP_FORMATS:
-        regex, parse_callable = timestamp
+        regex, parse_callable, _ = timestamp
         match = re.search(regex, line)
         if match is not None:
             try:
@@ -154,14 +158,17 @@ class TimestampScanner:
     """Scan a line for something that looks like a timestamp."""
 
     def __init__(self, timezone: tzinfo | None = None) -> None:
-        """`timezone` is given to timestamps without a UTC offset; they stay naive without it."""
+        """Timestamps without a UTC offset get the offset of the last timestamp with one
+        (the host that wrote the file), or `timezone` before that; naive without both."""
         self._timestamp_formats = TIMESTAMP_FORMATS.copy()
         self._timezone = timezone
+        self._learned_timezone: tzinfo | None = None
 
     def _localize(self, timestamp: datetime | None) -> datetime | None:
-        if timestamp is None or timestamp.tzinfo is not None or self._timezone is None:
+        if timestamp is None or timestamp.tzinfo is not None:
             return timestamp
-        return timestamp.replace(tzinfo=self._timezone)
+        zone = self._learned_timezone or self._timezone
+        return timestamp if zone is None else timestamp.replace(tzinfo=zone)
 
     def scan(self, line: str) -> datetime | None:
         """Scan a line.
@@ -176,7 +183,7 @@ class TimestampScanner:
             line = line[:10000]
         naive_fallback: datetime | None = None
         for index, timestamp_format in enumerate(self._timestamp_formats):
-            regex, parse_callable = timestamp_format
+            regex, parse_callable, shows_offset = timestamp_format
             if (match := re.search(regex, line)) is not None:
                 try:
                     if (timestamp := parse_callable(match.group(0))) is None:
@@ -192,6 +199,8 @@ class TimestampScanner:
                     del self._timestamp_formats[index : index + 1]
                     self._timestamp_formats.insert(0, timestamp_format)
 
+                if timestamp.tzinfo is not None and shows_offset:
+                    self._learned_timezone = timestamp.tzinfo
                 return self._localize(timestamp)
         return self._localize(naive_fallback)
 

@@ -4,6 +4,7 @@ from importlib.metadata import version
 import os
 import sys
 import time
+from datetime import tzinfo
 from typing import IO
 
 import click
@@ -18,10 +19,12 @@ def child_argv(
     since: str | None,
     until: str | None,
     output_merge: str | None,
-    timezone: str,
+    timezone: str | None,
 ) -> list[str]:
     """Command line for the child process that shows the piped input saved in `path`."""
-    argv = [program, path, "--timezone", timezone]
+    argv = [program, path]
+    if timezone is not None:
+        argv += ["--timezone", timezone]
     if since is not None:
         argv += ["--since", since]
     if until is not None:
@@ -49,12 +52,22 @@ def check_time(ctx: click.Context, param: click.Parameter, value: str | None) ->
     return value
 
 
-def check_timezone(ctx: click.Context, param: click.Parameter, value: str) -> str:
-    try:
-        parse_timezone(value)
-    except ValueError as error:
-        raise click.BadParameter(str(error)) from None
+def check_timezone(ctx: click.Context, param: click.Parameter, value: str | None) -> str | None:
+    if value is not None:
+        try:
+            parse_timezone(value)
+        except ValueError as error:
+            raise click.BadParameter(str(error)) from None
     return value
+
+
+def default_timezone() -> tzinfo | None:
+    """DEFAULT_TIMEZONE, or local time where the system has no time zone database."""
+    try:
+        return parse_timezone(DEFAULT_TIMEZONE)
+    except ValueError:
+        click.echo(f"Time zone {DEFAULT_TIMEZONE} is not available; using local time.", err=True)
+        return None
 
 
 @click.command()
@@ -89,12 +102,12 @@ def check_timezone(ctx: click.Context, param: click.Parameter, value: str) -> st
 @click.option(
     "--timezone",
     metavar="ZONE",
-    default=DEFAULT_TIMEZONE,
-    show_default=True,
     callback=check_timezone,
     help=(
-        "Time zone of timestamps without a UTC offset, in log lines and in --since/--until:"
-        " a name like Europe/Berlin, UTC, or an offset like +02:00."
+        "Time zone of timestamps without a UTC offset, in --since/--until and in log files"
+        " without timestamps that have one (other lines use the file's own offset):"
+        " a name like Europe/Berlin, UTC, an offset like +02:00, or local."
+        f" [default: {DEFAULT_TIMEZONE}]"
     ),
 )
 def run(
@@ -103,10 +116,10 @@ def run(
     output_merge: str | None,
     since: str | None,
     until: str | None,
-    timezone: str,
+    timezone: str | None,
 ) -> None:
     """View / tail / search log files."""
-    zone = parse_timezone(timezone)
+    zone = default_timezone() if timezone is None else parse_timezone(timezone)
     try:
         time_range = TimeRange.from_strings(since, until, zone)
     except ValueError as error:

@@ -32,6 +32,7 @@ def test_since_after_until_is_a_usage_error():
 
 
 def test_child_argv():
+    assert child_argv("tl", "/t/tl_1", None, None, None, None) == ["tl", "/t/tl_1"]
     assert child_argv("tl", "/t/tl_1", None, None, None, "UTC") == ["tl", "/t/tl_1", "--timezone", "UTC"]
     assert child_argv("tl", "/t/tl_1", "2026-10-02", "2026-10-03T08:00", "out.log", "UTC") == [
         "tl",
@@ -117,3 +118,22 @@ def test_unknown_timezone_is_a_usage_error():
     assert result.exit_code == 2
     assert "--timezone" in result.output
     assert "'Mars/Olympus'" in result.output
+
+
+def test_unavailable_default_timezone_falls_back_to_local_time(monkeypatch):
+    calls = []
+
+    class RecordingUI:
+        def __init__(self, files, **kwargs) -> None:
+            calls.append(kwargs)
+
+        def run(self) -> None:
+            pass
+
+    monkeypatch.setattr(toolong.cli, "UI", RecordingUI)
+    monkeypatch.setattr(toolong.cli, "stdin_is_tty", lambda: True)
+    monkeypatch.setattr(toolong.cli, "DEFAULT_TIMEZONE", "Mars/Olympus")
+    result = CliRunner().invoke(run, ["a.log"])
+    assert result.exit_code == 0, result.output
+    assert "Mars/Olympus" in result.output
+    assert calls[0]["timezone"] is None

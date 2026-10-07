@@ -144,7 +144,7 @@ class UniventionDebugLogFormat(LogFormat):
 
     REGEX = re.compile(
         r"(?P<date>\d{2}\.\d{2}\.(?P<year>\d{4}|\d{2}) \d{2}:\d{2}:\d{2}\.\d{3}) +"
-        r"(?:\S+ +\( ?(?P<level>[A-Z]+) *\) ?: |(?P<marker>DEBUG_INIT|DEBUG_EXIT)$)"
+        r"(?:\S+ +\( ?(?P<level>[A-Z0-9]+) *\) ?: |(?P<marker>DEBUG_INIT|DEBUG_EXIT)$)"
     )
 
     def parse(self, line: str) -> ParseResult | None:

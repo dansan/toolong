@@ -25,15 +25,18 @@ def parse_time(text: str) -> datetime:
         raise ValueError(f"not an ISO 8601 date or date and time: {text!r}") from None
 
 
-def parse_timezone(text: str) -> tzinfo:
-    """Parse an IANA time zone name (`Europe/Berlin`), `UTC`, or an offset (`+02:00`, `UTC+2`)."""
+def parse_timezone(text: str) -> tzinfo | None:
+    """Parse an IANA time zone name (`Europe/Berlin`), `UTC`, an offset (`+02:00`, `UTC+2`),
+    or `local`, which gives None: the machine's time zone."""
     name = text.strip()
+    if name.lower() == "local":
+        return None
     if name.upper() in ("UTC", "Z"):
         return timezone.utc
     if match := _UTC_OFFSET.fullmatch(name):
         sign, hours, minutes = match.groups()
         offset = timedelta(hours=int(hours), minutes=int(minutes or 0))
-        if offset >= timedelta(hours=24):
+        if offset >= timedelta(hours=24) or int(minutes or 0) >= 60:
             raise ValueError(f"not a time zone: {text!r}")
         return timezone(-offset if sign == "-" else offset)
     try:

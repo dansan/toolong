@@ -35,7 +35,9 @@ def test_naive_iso_line_does_not_make_later_offset_lines_naive():
     ]
     timestamps = [scanner.scan(line) for line in lines]
     assert None not in timestamps
-    assert [ts is not None and ts.tzinfo is not None for ts in timestamps] == [True, False, True, True]
+    assert [ts is not None and ts.tzinfo is not None for ts in timestamps] == [True, True, True, True]
+    # The line without an offset gets the offset of the file's other lines.
+    assert timestamps[1] is not None and timestamps[1].utcoffset() == timedelta(0)
 
 
 def test_offset_the_aware_formats_miss_still_gives_the_naive_time():
@@ -104,3 +106,25 @@ def test_scanner_keeps_the_offset_of_aware_timestamps_with_a_timezone():
     timestamp = scanner.scan("2026-10-02T09:38:28.970+00:00 INFO     [-] x")
     assert timestamp is not None
     assert timestamp.utcoffset() == timedelta(0)
+
+
+def test_scanner_uses_the_offset_learned_from_the_file_over_the_timezone():
+    scanner = TimestampScanner(timezone=timezone(timedelta(hours=2)))
+    assert scanner.scan("06.10.26 23:20:30.000  DEBUG_INIT").utcoffset() == timedelta(hours=2)
+    scanner.scan("2026-10-06T23:20:32.717678+00:00     INIT ")
+    assert scanner.scan("06.10.26 23:20:33.803  DEBUG_INIT") == datetime(
+        2026, 10, 6, 23, 20, 33, 803000, tzinfo=timezone.utc
+    )
+
+
+def test_scanner_learns_nothing_from_epoch_timestamps():
+    berlin = timezone(timedelta(hours=2))
+    scanner = TimestampScanner(timezone=berlin)
+    scanner.scan("1700000000.5 event")
+    assert scanner.scan("06.10.26 23:20:33.803  DEBUG_INIT").tzinfo == berlin
+
+
+def test_epoch_timestamps_keep_their_instant_with_a_timezone():
+    timestamp = TimestampScanner(timezone=timezone(timedelta(hours=5))).scan("1700000000.5 event")
+    assert timestamp is not None
+    assert timestamp.timestamp() == 1700000000.5
