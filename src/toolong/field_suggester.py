@@ -13,7 +13,7 @@ _LAST_TERM = re.compile(r'(?P<key>[^\s="!]*)(?:(?P<op>!=|=)(?P<value>[^\s"]*))?$
 
 
 class FieldIndex:
-    """Keys and recently seen values of the Lancelog lines rendered so far."""
+    """Keys and recently seen values of the ADR 0010 lines rendered so far."""
 
     MAX_VALUES_PER_KEY = 50
     MAX_VALUE_LENGTH = 80

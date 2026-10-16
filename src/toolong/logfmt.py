@@ -1,4 +1,4 @@
-"""Decode and encode logfmt the way the `logfmter` package writes it (Lancelog uses it)."""
+"""Decode and encode logfmt the way the `logfmter` package writes it (ADR 0010 data uses it)."""
 
 from __future__ import annotations
 

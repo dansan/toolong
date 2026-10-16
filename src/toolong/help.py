@@ -42,13 +42,13 @@ Repository: [https://github.com/Textualize/toolong](https://github.com/Textualiz
 - `ctrl+t` Tail current file.
 - `ctrl+c` Exit the app.
 - `y` Copy (yank) current line in pointer mode. See section 'Copying' below if it doesn't work.
-- `P` / `J` Copy the current Lancelog line as a Python dict / as JSON in pointer mode.
+- `P` / `J` Copy the current ADR 0010 line as a Python dict / as JSON in pointer mode.
 
 ### Find
 
 Press `ctrl+f` or `/` to find text. Check *Regex* to find with a regular expression.
 
-Check *Fields*, or press `ctrl+e` in the find dialog, to find Lancelog log lines by field.
+Check *Fields*, or press `ctrl+e` in the find dialog, to find ADR 0010 log lines by field.
 A query is one or more `key=value` or `key!=value` terms, and a line matches when all terms match.
 Keys are the data keys after the `|`, plus `level`, `request_id` and `message` from the header.
 If the data has a `request_id`, its full value is matched instead of the shortened one in the header.
@@ -135,7 +135,7 @@ If you are unsure whether you run Wayland or Xorg, install both `wl-clipboard` a
 
 In tmux, OSC 52 also needs `set -g set-clipboard on`.
 
-`P` copies a Lancelog line as a Python dict, `J` as a JSON object, each on one line.
+`P` copies an ADR 0010 line as a Python dict, `J` as a JSON object, each on one line.
 The header has the keys `_timestamp`, `_level`, `_request_id` and `_message`; the data keys follow in the order of the line.
 Values are decoded from logfmt and otherwise copied unchanged: a DN is copied as it was logged.
 If a data key has the name of a header key, its value is copied and a warning says so.

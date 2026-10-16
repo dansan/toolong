@@ -20,7 +20,7 @@ def test_scanner_keeps_microseconds_and_negative_offsets():
 
 
 @pytest.mark.parametrize("offset", ["+0000", "Z", "+00:00"])
-def test_scanner_returns_aware_microseconds_for_lancelog_offsets(offset):
+def test_scanner_returns_aware_microseconds_for_adr_0010_offsets(offset):
     timestamp = TimestampScanner().scan(f"2026-10-02T09:38:28.970123{offset} INFO     [-] x")
     assert timestamp == datetime(2026, 10, 2, 9, 38, 28, 970123, tzinfo=timezone.utc)
 

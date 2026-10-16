@@ -15,7 +15,7 @@ from textual.containers import ScrollableContainer
 from textual.widget import Widget
 from textual.widgets import Label, Static
 
-from toolong.lancelog import HEADER_KEYS, LancelogRecord, parse_lancelog
+from toolong.adr_0010 import HEADER_KEYS, Adr0010Record, parse_adr_0010
 from toolong.ldap_dn import Ava, parse_dn
 
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
@@ -24,7 +24,7 @@ MAX_CONTAINER_LENGTH = 16384
 _STRING_QUOTE = re.compile("[A-Za-z]*('''|\"\"\"|'|\")")
 
 
-def fields_table(record: LancelogRecord) -> Table:
+def fields_table(record: Adr0010Record) -> Table:
     table = Table(box=box.SIMPLE_HEAD)
     table.add_column("Field", style="repr.attrib_name", no_wrap=True)
     table.add_column("Value", overflow="fold")
@@ -151,7 +151,7 @@ class LineDisplay(Widget):
         else:
             yield Label(self.text)
 
-        record = parse_lancelog(self.line)
+        record = parse_adr_0010(self.line)
         if record is not None:
             yield Static(fields_table(record), classes="fields")
 

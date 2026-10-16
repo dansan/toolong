@@ -10,7 +10,7 @@ from textual.app import App, ComposeResult
 
 import toolong.line_panel
 from pilot_helpers import scanned_log_lines
-from toolong.lancelog import parse_lancelog
+from toolong.adr_0010 import parse_adr_0010
 from toolong.ldap_dn import parse_dn
 from toolong.line_panel import MAX_CONTAINER_LENGTH, LineDisplay, fields_table, value_text
 from toolong.ui import UI
@@ -25,7 +25,7 @@ def render(table: Table) -> str:
 
 
 def test_fields_table_lists_timestamp_header_and_data_fields():
-    record = parse_lancelog(LINE)
+    record = parse_adr_0010(LINE)
     assert record is not None
     output = render(fields_table(record))
     for expected in ["timestamp", "2026-10-02T09:38:29.200000+00:00", "level", "ERROR", "message", "Sync failed.", "gitlab_project_id", "211"]:
@@ -33,7 +33,7 @@ def test_fields_table_lists_timestamp_header_and_data_fields():
 
 
 def test_multiline_values_render_on_separate_lines():
-    record = parse_lancelog(
+    record = parse_adr_0010(
         '2026-10-02T09:38:29.200+00:00 ERROR    [         -] Boom.\t| _traceback="Traceback:\\n  File x\\nValueError: y"'
     )
     assert record is not None
@@ -51,7 +51,7 @@ class PanelApp(App):
         yield LineDisplay(self.line, Text(self.line), None)
 
 
-def test_line_display_shows_field_table_for_lancelog_lines():
+def test_line_display_shows_field_table_for_adr_0010_lines():
     async def scenario() -> None:
         app = PanelApp(LINE)
         async with app.run_test():
@@ -70,7 +70,7 @@ def test_line_display_has_no_field_table_for_other_lines():
 
 
 def test_fields_table_shows_header_level_and_data_level():
-    record = parse_lancelog(
+    record = parse_adr_0010(
         "2026-10-02T09:38:29.200+00:00 DEBUG    [         -] Config.\t| level=TRACE"
     )
     assert record is not None
@@ -80,12 +80,12 @@ def test_fields_table_shows_header_level_and_data_level():
 
 
 def test_fields_table_shows_keys_verbatim():
-    record = parse_lancelog("2026-10-02T09:38:29.200+00:00 DEBUG    [-] C.\t| x[bold]y=1")
+    record = parse_adr_0010("2026-10-02T09:38:29.200+00:00 DEBUG    [-] C.\t| x[bold]y=1")
     assert record is not None
     assert "x[bold]y" in render(fields_table(record))
 
 
-def test_line_display_splits_repr_newlines_in_lancelog_messages():
+def test_line_display_splits_repr_newlines_in_adr_0010_messages():
     line = "2026-10-02T09:38:29.200+00:00 ERROR    [-] 'a\\nb'\t| k=v"
 
     async def scenario() -> None:
@@ -134,7 +134,7 @@ def test_other_values_are_shown_unchanged():
 
 
 def test_fields_table_shows_dns_decoded():
-    record = parse_lancelog(DN_LINE)
+    record = parse_adr_0010(DN_LINE)
     assert record is not None
     assert "ou=foo<bar> + 1,dc=cerbos,dc=dev" in render(fields_table(record))
 

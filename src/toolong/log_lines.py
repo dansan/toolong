@@ -10,7 +10,7 @@ from textual.message import Message
 from textual.suggester import Suggester
 from toolong.field_query import match_line, match_spans, parse_field_query
 from toolong.field_suggester import FieldIndex, FieldSuggester
-from toolong.lancelog import parse_lancelog
+from toolong.adr_0010 import parse_adr_0010
 from toolong.record_export import export_line
 from toolong.scan_progress_bar import ScanProgressBar
 from toolong.find_dialog import FindDialog
@@ -674,7 +674,7 @@ class LogLines(ScrollView, inherit_bindings=False):
                     else:
                         search_index[sub_word.lower()] = word
 
-            if (record := parse_lancelog(line)) is not None:
+            if (record := parse_adr_0010(line)) is not None:
                 self._field_index.add(record.fields)
 
             if self.find and self.show_find:

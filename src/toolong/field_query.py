@@ -1,4 +1,4 @@
-"""Find Lancelog lines by field: `key=value` and `key!=value` terms, all must match."""
+"""Find ADR 0010 lines by field: `key=value` and `key!=value` terms, all must match."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from typing import Mapping
 
-from toolong.lancelog import HEADER_KEYS, parse_lancelog
+from toolong.adr_0010 import HEADER_KEYS, parse_adr_0010
 from toolong.logfmt import unescape
 
 _TERM = re.compile(
@@ -68,7 +68,7 @@ def parse_field_query(text: str) -> FieldQuery | None:
 def match_line(query: FieldQuery, line: str, case_sensitive: bool) -> bool:
     if not query.could_match(line):
         return False
-    record = parse_lancelog(line)
+    record = parse_adr_0010(line)
     return record is not None and query.matches(record.fields, case_sensitive)
 
 
@@ -76,7 +76,7 @@ def match_spans(
     query: FieldQuery, line: str, case_sensitive: bool
 ) -> list[tuple[int, int]] | None:
     """Spans of the fields matched by `=` terms, or None if the line doesn't match."""
-    record = parse_lancelog(line)
+    record = parse_adr_0010(line)
     if record is None or not query.matches(record.fields, case_sensitive):
         return None
     spans = []

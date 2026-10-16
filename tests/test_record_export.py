@@ -88,7 +88,7 @@ def test_trailing_line_break_is_not_copied():
 
 def test_other_lines_and_invalid_logfmt_copy_nothing():
     assert export_line(b"plain text", as_json=False) == Export(
-        None, ["This line isn't a Lancelog record. Nothing was copied."]
+        None, ["This line isn't an ADR 0010 record. Nothing was copied."]
     )
     assert export_line((HEADER + 'a="open').encode(), as_json=True) == Export(
         None, ["The data after | isn't valid logfmt. Nothing was copied."]

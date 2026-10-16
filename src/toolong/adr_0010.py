@@ -1,4 +1,4 @@
-r"""Parse log lines in the Lancelog format (Univention ADR 0010 "Log Format").
+r"""Parse log lines in the format of Univention ADR 0010 "Log Format".
 
 <timestamp> <level> [<request ID>] <message>\t| <logfmt data>
 """
@@ -29,7 +29,7 @@ _SEPARATOR = re.compile(r"(?:\t| {1,4})\| ")
 
 
 @dataclass(frozen=True)
-class LancelogRecord:
+class Adr0010Record:
     timestamp: datetime | None
     timestamp_text: str
     level: str
@@ -99,8 +99,8 @@ def parse_timestamp(text: str) -> datetime | None:
         return None
 
 
-def parse_lancelog(line: str) -> LancelogRecord | None:
-    """Parse a raw or tab-expanded Lancelog line, or return None for other lines."""
+def parse_adr_0010(line: str) -> Adr0010Record | None:
+    """Parse a raw or tab-expanded ADR 0010 line, or return None for other lines."""
     line = line.rstrip("\r\n")
     match = _LINE.match(line)
     if match is None:
@@ -122,7 +122,7 @@ def parse_lancelog(line: str) -> LancelogRecord | None:
     }
     if separator is not None:
         spans["separator"] = separator
-    return LancelogRecord(
+    return Adr0010Record(
         timestamp=timestamp,
         timestamp_text=match["timestamp"],
         level=match["level"],

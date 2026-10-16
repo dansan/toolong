@@ -1,11 +1,11 @@
-"""Turn a Lancelog line into a one-line Python dict literal or JSON object."""
+"""Turn an ADR 0010 line into a one-line Python dict literal or JSON object."""
 
 from __future__ import annotations
 
 import json
 from typing import NamedTuple
 
-from toolong.lancelog import parse_lancelog
+from toolong.adr_0010 import parse_adr_0010
 
 
 class Export(NamedTuple):
@@ -15,16 +15,16 @@ class Export(NamedTuple):
 
 
 def export_line(raw: bytes, as_json: bool) -> Export:
-    """Export the header and the logfmt-decoded data of a raw Lancelog line."""
+    """Export the header and the logfmt-decoded data of a raw ADR 0010 line."""
     problems: list[str] = []
     try:
         line = raw.decode("utf-8")
     except UnicodeDecodeError:
         line = raw.decode("utf-8", errors="replace")
         problems.append("The line isn't valid UTF-8; invalid bytes were copied as �.")
-    record = parse_lancelog(line)
+    record = parse_adr_0010(line)
     if record is None:
-        return Export(None, ["This line isn't a Lancelog record. Nothing was copied."])
+        return Export(None, ["This line isn't an ADR 0010 record. Nothing was copied."])
     if not record.data_valid:
         return Export(None, ["The data after | isn't valid logfmt. Nothing was copied."])
     data = {

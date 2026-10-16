@@ -101,7 +101,7 @@ def central_european_time(monkeypatch):
     time.tzset()
 
 
-def test_naive_line_does_not_shift_later_lancelog_lines(tmp_path, central_european_time):
+def test_naive_line_does_not_shift_later_adr_0010_lines(tmp_path, central_european_time):
     lines = [
         "2026-10-02T09:00:00.000+00:00 INFO     [         -] a",
         "2026-10-02T09:00:01.000 naive local time",

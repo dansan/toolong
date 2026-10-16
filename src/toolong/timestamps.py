@@ -3,8 +3,8 @@ from datetime import datetime, tzinfo
 import re
 from typing import Callable, NamedTuple
 
-from toolong.lancelog import TIMESTAMP_PATTERN
-from toolong.lancelog import parse_timestamp as parse_lancelog_timestamp
+from toolong.adr_0010 import TIMESTAMP_PATTERN
+from toolong.adr_0010 import parse_timestamp as parse_adr_0010_timestamp
 
 
 class TimestampFormat(NamedTuple):
@@ -55,7 +55,7 @@ _OFFSET_AFTER_MATCH = re.compile(r"\d*(?:[.,]\d+)?\s?(?:Z|[+-]\d{2}:?\d{2})")
 # Info taken from logmerger project https://github.com/ptmcg/logmerger/blob/main/logmerger/timestamp_wrapper.py
 
 TIMESTAMP_FORMATS = [
-    TimestampFormat(TIMESTAMP_PATTERN, parse_lancelog_timestamp),
+    TimestampFormat(TIMESTAMP_PATTERN, parse_adr_0010_timestamp),
     TimestampFormat(
         r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}\s?(?:Z|[+-]\d{4})",
         datetime.fromisoformat,

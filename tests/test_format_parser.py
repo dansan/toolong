@@ -15,7 +15,7 @@ def styles_at(text: Text, index: int) -> list[str]:
     return [str(span.style) for span in text.spans if span.start <= index < span.end]
 
 
-def test_lancelog_line_has_an_aware_timestamp_and_unchanged_text():
+def test_adr_0010_line_has_an_aware_timestamp_and_unchanged_text():
     timestamp, line, text = FormatParser().parse(LINE)
     assert timestamp == datetime(2026, 10, 2, 9, 38, 28, 970000, tzinfo=timezone.utc)
     assert line == LINE
@@ -63,7 +63,7 @@ def test_other_lines_still_use_the_default_format():
     ("level", "styles"),
     [("ALL", ["grey50"]), ("PROCESS", []), ("WARN", ["yellow"])],
 )
-def test_univention_debug_level_names_in_lancelog_header(level, styles):
+def test_univention_debug_level_names_in_adr_0010_header(level, styles):
     line = f"2026-10-02T09:38:28.970+00:00 {level:>8} [         -] Message.\t| k=v".expandtabs(4)
     _, _, text = FormatParser().parse(line)
     assert styles_at(text, line.index("Message")) == styles

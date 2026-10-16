@@ -63,7 +63,7 @@ def test_invalid_queries(text):
     assert parse_field_query(text) is None
 
 
-def test_match_line_parses_lancelog_lines():
+def test_match_line_parses_adr_0010_lines():
     assert match_line(query("gitlab_project_id=211"), LINE, case_sensitive=True)
     assert match_line(query("gitlab_project_id=211"), LINE.expandtabs(4), case_sensitive=True)
 

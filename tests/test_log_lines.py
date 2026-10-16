@@ -294,7 +294,7 @@ def test_capital_p_on_other_lines_copies_nothing_and_says_why(tmp_path):
             await pilot.press("g", "enter", "P")
             await pilot.pause()
             assert copied == []
-            assert notifications == ["This line isn't a Lancelog record. Nothing was copied."]
+            assert notifications == ["This line isn't an ADR 0010 record. Nothing was copied."]
 
     asyncio.run(scenario())
 

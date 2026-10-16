@@ -9,7 +9,7 @@ import rich.repr
 from rich.text import Text
 
 from toolong.highlighter import LogHighlighter
-from toolong.lancelog import parse_lancelog
+from toolong.adr_0010 import parse_adr_0010
 from toolong import timestamps
 from typing import Optional
 
@@ -115,14 +115,14 @@ LEVEL_STYLES = {
     "ERROR": "red",
     "CRITICAL": "red",
 }
-LANCELOG_DATA_STYLE = "grey50"
+ADR_0010_DATA_STYLE = "grey50"
 
 
-class LancelogLogFormat(LogFormat):
+class Adr0010LogFormat(LogFormat):
     """The record in its level's color; the data section is gray, it is read in the line panel."""
 
     def parse(self, line: str) -> ParseResult | None:
-        record = parse_lancelog(line)
+        record = parse_adr_0010(line)
         if record is None:
             return None
         text = Text(line)
@@ -130,7 +130,7 @@ class LancelogLogFormat(LogFormat):
         level_style = LEVEL_STYLES.get(record.level.upper())
         if level_style:
             text.stylize(level_style, 0, data_start)
-        text.stylize(LANCELOG_DATA_STYLE, data_start)
+        text.stylize(ADR_0010_DATA_STYLE, data_start)
         return record.timestamp, line, text
 
 
@@ -164,7 +164,7 @@ class UniventionDebugLogFormat(LogFormat):
 
 
 FORMATS = [
-    LancelogLogFormat(),
+    Adr0010LogFormat(),
     UniventionDebugLogFormat(),
     JSONLogFormat(),
     CommonLogFormat(),
