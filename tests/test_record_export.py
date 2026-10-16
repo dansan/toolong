@@ -25,7 +25,7 @@ def test_python_export_is_a_one_line_dict_literal_of_header_and_logfmt_decoded_d
     assert "\n" not in export.text
     assert ast.literal_eval(export.text) == {
         **HEADER_DATA,
-        "pid": "2407446",
+        "pid": 2407446,
         "binddn": "cn=admin,dc=cerbos,dc=dev",
         "dn": r"ou=foo\3cbar\3e \2b 1,dc=cerbos,dc=dev",
     }
@@ -67,7 +67,7 @@ def test_data_key_with_a_header_name_replaces_the_header_value_with_a_warning():
 
 def test_repeated_data_key_copies_the_last_value_with_a_warning():
     export = export_line((HEADER + "a=1 a=2").encode(), as_json=False)
-    assert ast.literal_eval(export.text)["a"] == "2"
+    assert ast.literal_eval(export.text)["a"] == 2
     assert export.problems == ["Data key 'a' appears more than once; the last value was copied."]
 
 
@@ -83,7 +83,7 @@ def test_line_without_data_exports_the_header():
 
 
 def test_trailing_line_break_is_not_copied():
-    assert python_data((HEADER + "a=1\r\n").encode())["a"] == "1"
+    assert python_data((HEADER + "a=1\r\n").encode())["a"] == 1
 
 
 def test_other_lines_and_invalid_logfmt_copy_nothing():
@@ -110,3 +110,46 @@ def test_json_escapes_unicode_line_separators_so_it_stays_one_line():
     export = export_line((HEADER + 'v="a\u2028b\u2029c\u0085d"').encode(), as_json=True)
     assert len(export.text.splitlines()) == 1
     assert json.loads(export.text)["v"] == "a\u2028b\u2029c\u0085d"
+
+
+def test_numbers_and_booleans_are_copied_as_numbers_and_booleans():
+    raw = (HEADER + "a=12 b=34.56 c=true d=false e=.5 f=7. g=-3 h=-0.25 i=-.5 j=0 k=0.5").encode()
+    expected = {
+        **{"a": 12, "b": 34.56, "c": True, "d": False, "e": 0.5, "f": 7.0},
+        **{"g": -3, "h": -0.25, "i": -0.5, "j": 0, "k": 0.5},
+    }
+    python = python_data(raw)
+    json_data = json.loads(export_line(raw, as_json=True).text)
+    for key, value in expected.items():
+        assert type(python[key]) is type(value) and python[key] == value
+        assert type(json_data[key]) is type(value) and json_data[key] == value
+    assert '"c": true, "d": false' in export_line(raw, as_json=True).text
+
+
+def test_other_values_stay_strings():
+    raw = (HEADER + 'a=+1 b=1.2.3 c=. d=1e5 e=True f=" 1" g=١ h= i=- j=--1 k=1-').encode()
+    assert python_data(raw) == {
+        **HEADER_DATA,
+        **{"a": "+1", "b": "1.2.3", "c": ".", "d": "1e5", "e": "True", "f": " 1", "g": "١", "h": ""},
+        **{"i": "-", "j": "--1", "k": "1-"},
+    }
+
+
+def test_numbers_with_leading_zeros_stay_strings():
+    raw = (HEADER + "a=007 b=0755 c=-01 d=00.5 e=-00.5").encode()
+    assert python_data(raw) == {
+        **HEADER_DATA,
+        **{"a": "007", "b": "0755", "c": "-01", "d": "00.5", "e": "-00.5"},
+    }
+
+
+def test_header_values_stay_strings():
+    raw = b"2026-10-15T05:05:20.501296+02:00    DEBUG [1234567890] 42"
+    assert python_data(raw) == {**HEADER_DATA, "_request_id": "1234567890", "_message": "42"}
+
+
+def test_numbers_too_long_for_int_or_float_stay_strings():
+    digits = "9" * 5000
+    raw = (HEADER + f"a={digits} b={digits}.0").encode()
+    data = json.loads(export_line(raw, as_json=True).text)
+    assert (data["a"], data["b"]) == (digits, digits + ".0")

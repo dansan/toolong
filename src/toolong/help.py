@@ -138,6 +138,7 @@ In tmux, OSC 52 also needs `set -g set-clipboard on`.
 `P` copies an ADR 0010 line as a Python dict, `J` as a JSON object, each on one line.
 The header has the keys `_timestamp`, `_level`, `_request_id` and `_message`; the data keys follow in the order of the line.
 Values are decoded from logfmt and otherwise copied unchanged: a DN is copied as it was logged.
+Data values that are decimal numbers are copied as numbers, `-12` as an int and `34.56` as a float, but `007` stays a string; `true` and `false` are copied as booleans.
 If a data key has the name of a header key, its value is copied and a warning says so.
 The JSON is UTF-8.
 Paste `P` into Python code as it is: `data = <paste>`.
