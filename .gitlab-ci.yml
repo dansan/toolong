@@ -11,7 +11,17 @@ include:
     rules:
       - if: $RUN_RENOVATE == "yes"
 
+stages:
+  - build
+  - publish
+  - release
+
+.on-version-tag:
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/ && $RUN_RENOVATE != "yes"
+
 debian-bookworm:
+  stage: build
   image: debian:bookworm
   rules:
     - if: $RUN_RENOVATE != "yes"
@@ -37,3 +47,99 @@ debian-bookworm:
       - build/*.deb
       - build/*.dsc
       - build/*.tar.*
+
+wheel:
+  stage: build
+  image: python:3.12-slim-bookworm
+  rules:
+    - if: $RUN_RENOVATE != "yes"
+  before_script:
+    - pip install -q --root-user-action=ignore poetry==2.4.3
+  script:
+    - poetry build --format wheel
+    - python -m venv /opt/toolong
+    - /opt/toolong/bin/pip install -q dist/toolong-*.whl
+    - /opt/toolong/bin/tl --version
+  artifacts:
+    paths:
+      - dist/*.whl
+
+publish:
+  stage: publish
+  extends: .on-version-tag
+  image: python:3.12-slim-bookworm
+  needs: [debian-bookworm, wheel]
+  variables:
+    POETRY_REPOSITORIES_GITLAB_URL: $CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/pypi
+    POETRY_HTTP_BASIC_GITLAB_USERNAME: gitlab-ci-token
+    POETRY_HTTP_BASIC_GITLAB_PASSWORD: $CI_JOB_TOKEN
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends curl
+    - pip install -q --root-user-action=ignore poetry==2.4.3
+  script:
+    - VERSION=${CI_COMMIT_TAG#v}
+    - test "$(poetry version --short)" = "$VERSION"
+    - DEB=$(basename build/toolong_"$VERSION"-*_all.deb)
+    - test -f "build/$DEB"
+    - WHL=toolong-$VERSION-py3-none-any.whl
+    - SHA256=$(sha256sum "dist/$WHL" | cut -d' ' -f1)
+    - poetry publish --repository gitlab
+    - |
+      curl -fsS --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file "build/$DEB" \
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/toolong/$VERSION/$DEB"
+    - |
+      cat > release.env <<EOF
+      DEB_URL=$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/toolong/$VERSION/$DEB
+      DEB=$DEB
+      WHL_URL=$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/pypi/files/$SHA256/$WHL
+      WHL=$WHL
+      EOF
+    - |
+      DOWNLOADS=$CI_PROJECT_URL/-/releases/$CI_COMMIT_TAG/downloads
+      cat > release-notes.md <<EOF
+      ### Installation
+
+      Debian Bookworm:
+
+      \`\`\`sh
+      curl -fLO $DOWNLOADS/toolong_all.deb
+      sudo apt install ./toolong_all.deb
+      \`\`\`
+
+      With pipx, from the PyPI registry of this project, from the wheel, or from git:
+
+      \`\`\`sh
+      pipx install toolong==$VERSION --index-url $CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/pypi/simple
+      pipx install $DOWNLOADS/$WHL
+      pipx install git+$CI_PROJECT_URL.git@$CI_COMMIT_TAG
+      \`\`\`
+      EOF
+    - awk -v v="$VERSION" '/^## /{p = index($0, "## " v " ") == 1; next} p' CHANGELOG.md >> release-notes.md
+  artifacts:
+    paths:
+      - release-notes.md
+    reports:
+      dotenv: release.env
+
+release:
+  stage: release
+  extends: .on-version-tag
+  image: registry.gitlab.com/gitlab-org/cli:v1.123.0
+  needs: [publish]
+  script:
+    - echo "Releasing $CI_COMMIT_TAG"
+  release:
+    tag_name: $CI_COMMIT_TAG
+    name: toolong $CI_COMMIT_TAG
+    description: release-notes.md
+    assets:
+      links:
+        - name: $DEB
+          url: $DEB_URL
+          link_type: package
+          direct_asset_path: /toolong_all.deb
+        - name: $WHL
+          url: $WHL_URL
+          link_type: package
+          direct_asset_path: /$WHL
