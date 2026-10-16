@@ -995,7 +995,8 @@ class LogLines(ScrollView, inherit_bindings=False):
             return
         with self._lock:
             log_file, start, end = self.index_to_span(self.pointer_line)
-            raw = log_file.get_raw(start, end)
+            # Spans after the first line start at the line break before them.
+            raw = log_file.get_raw(start, end).strip(b"\r\n")
         export = export_line(raw, as_json)
         for problem in export.problems:
             self.notify(problem, severity="error" if export.text is None else "warning")

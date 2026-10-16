@@ -278,6 +278,28 @@ def test_capital_p_and_j_copy_the_pointer_record(tmp_path, key, expected):
     asyncio.run(scenario())
 
 
+def test_capital_p_copies_lines_after_the_first(tmp_path):
+    path = tmp_path / "app.log"
+    path.write_text("plain text\n" + DN_LINE + "\n")
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        copied: list[str] = []
+        app.copy_to_clipboard = copied.append
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("g", "enter", "down", "P")
+            await pilot.pause()
+            assert log_lines.pointer_line == 1
+            assert copied == [
+                r"{'_timestamp': '2026-10-15T05:05:20.501296+02:00', '_level': 'DEBUG', '_request_id': '-', "
+                r"'_message': 'bind', 'dn': 'ou=foo\\3cbar\\3e \\2b 1,dc=cerbos,dc=dev'}"
+            ]
+
+    asyncio.run(scenario())
+
+
 def test_capital_p_on_other_lines_copies_nothing_and_says_why(tmp_path):
     path = tmp_path / "app.log"
     path.write_text("plain text\n")
