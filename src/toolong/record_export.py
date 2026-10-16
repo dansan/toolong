@@ -7,6 +7,8 @@ from typing import NamedTuple
 
 from toolong.adr_0010 import parse_adr_0010
 
+_LINE_SEPARATOR_ESCAPES = {0x85: "\\u0085", 0x2028: "\\u2028", 0x2029: "\\u2029"}
+
 
 class Export(NamedTuple):
     # None when there is nothing to copy; `problems` then says why.
@@ -51,4 +53,5 @@ def to_json(data: dict[str, str]) -> str:
     except UnicodeEncodeError:
         # Lone surrogates from logfmt "\u" escapes have no UTF-8 encoding; ASCII escapes them.
         return json.dumps(data)
-    return text
+    # Valid in JSON strings, but splitlines() and some editors break lines there.
+    return text.translate(_LINE_SEPARATOR_ESCAPES)

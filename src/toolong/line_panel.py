@@ -21,7 +21,8 @@ from toolong.ldap_dn import Ava, parse_dn
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 # Longer list, tuple, set or dict values aren't parsed, so a huge value can't slow down the line details.
 MAX_CONTAINER_LENGTH = 16384
-_STRING_QUOTE = re.compile("[A-Za-z]*('''|\"\"\"|'|\")")
+# One string literal; implicitly concatenated ones ('a' 'b') form a single constant and don't match.
+_SINGLE_STRING = re.compile(r"[A-Za-z]*('''|\"\"\"|'|\")(?:\\.|(?!\1).)*\1", re.DOTALL)
 
 
 def fields_table(record: Adr0010Record) -> Table:
@@ -66,7 +67,8 @@ def dn_text(rdns: list[list[Ava]]) -> Text:
 
 def _container_text(value: str) -> Text | None:
     """Show a Python literal as written, with its DN strings decoded, or return None if it has none."""
-    if len(value) > MAX_CONTAINER_LENGTH or "\n" in value:
+    # Python also breaks lines at "\r"; column offsets after a line break don't index `source`.
+    if len(value) > MAX_CONTAINER_LENGTH or "\n" in value or "\r" in value:
         return None
     try:
         source = value.encode("utf-8")
@@ -74,24 +76,26 @@ def _container_text(value: str) -> Text | None:
         ast.literal_eval(tree)
     except (SyntaxError, ValueError, TypeError, MemoryError, RecursionError, UnicodeEncodeError):
         return None
-    dns: list[tuple[int, int, list[list[Ava]]]] = []
+    dns: list[tuple[int, int, str, list[list[Ava]]]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.end_col_offset is not None:
             rdns = parse_dn(node.value)
-            if rdns is not None:
-                # Column offsets count UTF-8 bytes.
-                dns.append((node.col_offset, node.end_col_offset, rdns))
+            if rdns is None:
+                continue
+            # Column offsets count UTF-8 bytes.
+            string = _SINGLE_STRING.fullmatch(source[node.col_offset : node.end_col_offset].decode("utf-8"))
+            if string is not None:
+                dns.append((node.col_offset, node.end_col_offset, string[1], rdns))
     if not dns:
         return None
     text = Text()
     position = 0
-    for start, end, rdns in sorted(dns, key=lambda dn: dn[0]):
-        quote = _STRING_QUOTE.match(source[start:end].decode("utf-8"))
-        assert quote is not None
+    for start, end, quote, rdns in sorted(dns, key=lambda dn: dn[0]):
+        literal = source[start:end].decode("utf-8")
         text.append(source[position:start].decode("utf-8"))
-        text.append(quote[0])
+        text.append(literal[: literal.index(quote) + len(quote)])
         text.append_text(dn_text(rdns))
-        text.append(quote[1])
+        text.append(quote)
         position = end
     text.append(source[position:].decode("utf-8"))
     return text

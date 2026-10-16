@@ -104,3 +104,9 @@ def test_invalid_utf8_is_copied_as_replacement_characters_with_a_warning():
 def test_tabs_in_the_message_are_copied_as_tabs():
     raw = b"2026-10-15T05:05:20.501296+02:00    DEBUG [31f863092a] a\tb\t| k=v"
     assert python_data(raw)["_message"] == "a\tb"
+
+
+def test_json_escapes_unicode_line_separators_so_it_stays_one_line():
+    export = export_line((HEADER + 'v="a\u2028b\u2029c\u0085d"').encode(), as_json=True)
+    assert len(export.text.splitlines()) == 1
+    assert json.loads(export.text)["v"] == "a\u2028b\u2029c\u0085d"

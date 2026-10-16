@@ -197,6 +197,17 @@ def test_escaped_dns_in_a_list_are_decoded_inside_their_quotes():
     assert value_text(r"['ou=foo\\3cbar\\3e \\2b 1,dc=x', 7]").plain == "['ou=foo<bar> + 1,dc=x', 7]"
 
 
+def test_implicitly_concatenated_strings_are_shown_as_written():
+    for value in ["['cn=a' 'b']", "['x' 'cn=a,dc=b']", "['cn=a' \"b\"]"]:
+        assert value_text(value).plain == value
+    assert value_text("['cn=a' 'b', 'cn=c\\\\2b']").plain == "['cn=a' 'b', 'cn=c+']"
+
+
+def test_container_with_a_carriage_return_is_not_decoded():
+    # Rich drops "\r" from any Text, so only the decoding is checked.
+    assert value_text("['Tübingen',\r'cn=a\\\\2b,dc=b']").spans == []
+
+
 def test_double_quotes_and_non_ascii_text_before_a_dn_are_kept():
     value = r"""('Tübingen', "cn=it's\\2b,dc=x")"""
     assert value_text(value).plain == """('Tübingen', "cn=it's+,dc=x")"""

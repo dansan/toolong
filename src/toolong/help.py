@@ -115,7 +115,7 @@ See *Copying* below if it doesn't work.
 
 Press `enter` again or click the line a second time to expand the line in to a new panel.
 The panel shows LDAP DNs decoded, also inside Python lists and dicts: `ou=foo\\3cbar\\3e` is shown as `ou=foo<bar>`.
-Colors set the `=`, `,` and `+` between the parts of a DN apart from the same characters in values.
+The `=`, `,` and `+` between the parts of a DN are colored; the same characters inside values are not.
 
 Press `escape` to hide the line panel if it is visible, or to leave pointer mode if the line panel is not visible.
 
