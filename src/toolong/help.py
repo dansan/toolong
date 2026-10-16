@@ -140,6 +140,8 @@ The header has the keys `_timestamp`, `_level`, `_request_id` and `_message`; th
 Values are decoded from logfmt and otherwise copied unchanged: a DN is copied as it was logged.
 If a data key has the name of a header key, its value is copied and a warning says so.
 The JSON is UTF-8.
+Paste `P` into Python code as it is: `data = <paste>`.
+To paste `J` into Python code, use a raw string, `json.loads(r'<paste>')`; in a normal string, Python decodes the backslashes before JSON sees them.
 
 
 ### Credits

@@ -26,6 +26,12 @@ def test_help_lists_capital_p_and_j_for_copying_the_record():
         assert key in copying
 
 
+def test_help_explains_how_to_paste_into_python():
+    copying = HELP_MD.split("### Copying", 1)[1].split("###", 1)[0]
+    assert "Paste `P` into Python code as it is" in copying
+    assert "raw string" in copying
+
+
 def test_help_says_the_line_panel_decodes_dns():
     pointer_mode = HELP_MD.split("### Pointer mode", 1)[1].split("###", 1)[0]
     assert "`ou=foo<bar>`" in pointer_mode
