@@ -240,3 +240,82 @@ def test_y_also_copies_with_local_tools_and_says_how(tmp_path, monkeypatch, copi
             assert notifications == [message]
 
     asyncio.run(scenario())
+
+
+DN_LINE = "2026-10-15T05:05:20.501296+02:00    DEBUG [         -] bind\t| " + r'dn="ou=foo\\3cbar\\3e \\2b 1,dc=cerbos,dc=dev"'
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        (
+            "P",
+            r"{'_timestamp': '2026-10-15T05:05:20.501296+02:00', '_level': 'DEBUG', '_request_id': '-', "
+            r"'_message': 'bind', 'dn': 'ou=foo\\3cbar\\3e \\2b 1,dc=cerbos,dc=dev'}",
+        ),
+        (
+            "J",
+            r'{"_timestamp": "2026-10-15T05:05:20.501296+02:00", "_level": "DEBUG", "_request_id": "-", '
+            r'"_message": "bind", "dn": "ou=foo\\3cbar\\3e \\2b 1,dc=cerbos,dc=dev"}',
+        ),
+    ],
+)
+def test_capital_p_and_j_copy_the_pointer_record(tmp_path, key, expected):
+    path = tmp_path / "app.log"
+    path.write_text(DN_LINE + "\n")
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        copied: list[str] = []
+        app.copy_to_clipboard = copied.append
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("g", "enter", key)
+            await pilot.pause()
+            assert copied == [expected]
+
+    asyncio.run(scenario())
+
+
+def test_capital_p_on_other_lines_copies_nothing_and_says_why(tmp_path):
+    path = tmp_path / "app.log"
+    path.write_text("plain text\n")
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        copied: list[str] = []
+        notifications: list[str] = []
+        app.copy_to_clipboard = copied.append
+        app.notify = lambda message, **kwargs: notifications.append(message)
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("g", "enter", "P")
+            await pilot.pause()
+            assert copied == []
+            assert notifications == ["This line isn't a Lancelog record. Nothing was copied."]
+
+    asyncio.run(scenario())
+
+
+def test_capital_p_and_j_without_pointer_or_in_find_copy_nothing(tmp_path):
+    path = tmp_path / "app.log"
+    path.write_text(DN_LINE + "\n")
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        copied: list[str] = []
+        app.copy_to_clipboard = copied.append
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("P", "J")
+            await pilot.pause()
+            assert copied == []
+            await pilot.press("enter", "ctrl+f", "P", "J")
+            await pilot.pause()
+            assert app.screen.query_one("#find-text", Input).value == "PJ"
+            assert copied == []
+
+    asyncio.run(scenario())

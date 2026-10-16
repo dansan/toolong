@@ -42,6 +42,7 @@ Repository: [https://github.com/Textualize/toolong](https://github.com/Textualiz
 - `ctrl+t` Tail current file.
 - `ctrl+c` Exit the app.
 - `y` Copy (yank) current line in pointer mode. See section 'Copying' below if it doesn't work.
+- `P` / `J` Copy the current Lancelog line as a Python dict / as JSON in pointer mode.
 
 ### Find
 
@@ -113,6 +114,8 @@ Press `y` to copy (yank) the current line to the system clipboard.
 See *Copying* below if it doesn't work.
 
 Press `enter` again or click the line a second time to expand the line in to a new panel.
+The panel shows LDAP DNs decoded: `ou=foo\\3cbar\\3e` is shown as `ou=foo<bar>`.
+Colors set the `=`, `,` and `+` between the parts of a DN apart from the same characters in values.
 
 Press `escape` to hide the line panel if it is visible, or to leave pointer mode if the line panel is not visible.
 
@@ -131,6 +134,12 @@ Install a clipboard tool:
 If you are unsure whether you run Wayland or Xorg, install both `wl-clipboard` and `xclip` (or `xsel`).
 
 In tmux, OSC 52 also needs `set -g set-clipboard on`.
+
+`P` copies a Lancelog line as a Python dict, `J` as a JSON object, each on one line.
+The header has the keys `_timestamp`, `_level`, `_request_id` and `_message`; the data keys follow in the order of the line.
+Values are decoded from logfmt and otherwise copied unchanged: a DN is copied as it was logged.
+If a data key has the name of a header key, its value is copied and a warning says so.
+The JSON is UTF-8.
 
 
 ### Credits

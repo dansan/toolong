@@ -17,3 +17,15 @@ def test_help_explains_the_clipboard_tools_and_their_packages():
     assert "GNOME Terminal" in copying
     for name in ("`wl-copy`", "`wl-clipboard`", "`xclip`", "`xsel`"):
         assert name in copying
+
+
+def test_help_lists_capital_p_and_j_for_copying_the_record():
+    assert "- `P` / `J` Copy the current Lancelog line as a Python dict / as JSON in pointer mode." in HELP_MD
+    copying = HELP_MD.split("### Copying", 1)[1].split("###", 1)[0]
+    for key in ("`_timestamp`", "`_level`", "`_request_id`", "`_message`"):
+        assert key in copying
+
+
+def test_help_says_the_line_panel_decodes_dns():
+    pointer_mode = HELP_MD.split("### Pointer mode", 1)[1].split("###", 1)[0]
+    assert "`ou=foo<bar>`" in pointer_mode

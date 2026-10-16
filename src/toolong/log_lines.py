@@ -11,6 +11,7 @@ from textual.suggester import Suggester
 from toolong.field_query import match_line, match_spans, parse_field_query
 from toolong.field_suggester import FieldIndex, FieldSuggester
 from toolong.lancelog import parse_lancelog
+from toolong.record_export import export_line
 from toolong.scan_progress_bar import ScanProgressBar
 from toolong.find_dialog import FindDialog
 from toolong.log_file import LogFile
@@ -144,6 +145,8 @@ class LogLines(ScrollView, inherit_bindings=False):
         Binding("enter", "select", "Select line", show=False),
         Binding("escape", "dismiss", "Dismiss", show=False, priority=True),
         Binding("y", "copy", "Copy (yank) current selection", show=False),
+        Binding("P", "copy_data(False)", "Copy as Python dict", show=False),
+        Binding("J", "copy_data(True)", "Copy as JSON", show=False),
         Binding("m", "navigate(+1, 'm')"),
         Binding("M", "navigate(-1, 'm')"),
         Binding("o", "navigate(+1, 'h')"),
@@ -986,6 +989,18 @@ class LogLines(ScrollView, inherit_bindings=False):
             line = self.get_line_from_index(self.pointer_line)
             if line is not None:
                 self.app.copy_to_clipboard(line)
+
+    def action_copy_data(self, as_json: bool) -> None:
+        if self.pointer_line is None:
+            return
+        with self._lock:
+            log_file, start, end = self.index_to_span(self.pointer_line)
+            raw = log_file.get_raw(start, end)
+        export = export_line(raw, as_json)
+        for problem in export.problems:
+            self.notify(problem, severity="error" if export.text is None else "warning")
+        if export.text is not None:
+            self.app.copy_to_clipboard(export.text)
 
     def watch_tail(self, tail: bool) -> None:
         self.set_class(tail, "-tail")
