@@ -144,3 +144,9 @@ def test_header_level_and_message_win_over_data_keys():
     assert record.fields["message"] == "Config."
     assert record.field_span("level") == record.spans["level"]
     assert record.field_span("message") == record.spans["message"]
+
+
+def test_record_keeps_the_timestamp_as_written():
+    record = parse_lancelog("2023-10-27T08:22:57.275+0000 INFO     [-] M.")
+    assert record is not None
+    assert record.timestamp_text == "2023-10-27T08:22:57.275+0000"

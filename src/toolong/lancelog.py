@@ -31,6 +31,7 @@ _SEPARATOR = re.compile(r"(?:\t| {1,4})\| ")
 @dataclass(frozen=True)
 class LancelogRecord:
     timestamp: datetime | None
+    timestamp_text: str
     level: str
     request_id: str
     message: str
@@ -123,6 +124,7 @@ def parse_lancelog(line: str) -> LancelogRecord | None:
         spans["separator"] = separator
     return LancelogRecord(
         timestamp=timestamp,
+        timestamp_text=match["timestamp"],
         level=match["level"],
         request_id=request_id,
         message=message,
