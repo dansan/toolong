@@ -29,3 +29,4 @@ def test_help_lists_capital_p_and_j_for_copying_the_record():
 def test_help_says_the_line_panel_decodes_dns():
     pointer_mode = HELP_MD.split("### Pointer mode", 1)[1].split("###", 1)[0]
     assert "`ou=foo<bar>`" in pointer_mode
+    assert "also inside Python lists and dicts" in pointer_mode

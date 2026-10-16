@@ -1,6 +1,8 @@
 import asyncio
 import io
 
+import pytest
+
 from rich.console import Console
 from rich.table import Table
 from rich.text import Text
@@ -10,7 +12,7 @@ import toolong.line_panel
 from pilot_helpers import scanned_log_lines
 from toolong.lancelog import parse_lancelog
 from toolong.ldap_dn import parse_dn
-from toolong.line_panel import LineDisplay, fields_table, value_text
+from toolong.line_panel import MAX_CONTAINER_LENGTH, LineDisplay, fields_table, value_text
 from toolong.ui import UI
 
 LINE = "2026-10-02T09:38:29.200+00:00 ERROR    [         -] Sync failed.\t| gitlab_project_id=211"
@@ -167,3 +169,55 @@ def test_dns_are_detected_only_while_the_line_details_are_open(tmp_path, monkeyp
 def test_single_attribute_values_keep_their_text():
     assert value_text("objectClass=sambaDomain").plain == "objectClass=sambaDomain"
 
+
+LIST_VALUE = "['uid=alice,cn=users,dc=root', 'uid=bob,cn=users,dc=root']"
+DICT_VALUE = (
+    "{'foo': 'bar', 'bar': 123, 'dn1': 'uid=alice,cn=users,dc=root', 'dn2': 'uid=bob,cn=users,dc=root', "
+    "'dns': ['uid=alice,cn=users,dc=root', 'uid=bob,cn=users,dc=root']}"
+)
+
+
+def test_dns_in_a_list_keep_the_list_text_and_get_colored_separators():
+    text = value_text(LIST_VALUE)
+    assert text.plain == LIST_VALUE
+    assert styles_at(text, LIST_VALUE.index("uid=bob")) == ["repr.attrib_name"]
+    assert styles_at(text, LIST_VALUE.index(", 'uid=bob")) == []
+
+
+def test_dns_in_a_nested_dict_are_found_and_other_items_stay_plain():
+    text = value_text(DICT_VALUE)
+    assert text.plain == DICT_VALUE
+    for dn_start in ("uid=alice,cn=users,dc=root', 'dn2", "uid=bob,cn=users,dc=root', 'dns", "uid=bob,cn=users,dc=root']"):
+        assert styles_at(text, DICT_VALUE.index(dn_start)) == ["repr.attrib_name"]
+    assert styles_at(text, DICT_VALUE.index("foo")) == []
+    assert styles_at(text, DICT_VALUE.index("123")) == []
+
+
+def test_escaped_dns_in_a_list_are_decoded_inside_their_quotes():
+    assert value_text(r"['ou=foo\\3cbar\\3e \\2b 1,dc=x', 7]").plain == "['ou=foo<bar> + 1,dc=x', 7]"
+
+
+def test_double_quotes_and_non_ascii_text_before_a_dn_are_kept():
+    value = r"""('Tübingen', "cn=it's\\2b,dc=x")"""
+    assert value_text(value).plain == """('Tübingen', "cn=it's+,dc=x")"""
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "(objectClass=*)",
+        "(&(uid=a)(cn=b))",
+        "['a', 'b c=d']",
+        "{'a': 1}",
+        "[x=1]",
+        "['cn=a'",
+        "[print('cn=a')]",
+        "['cn=a', 'b'\n]",
+        "[" * 1000 + "'cn=a'" + "]" * 1000,
+        "['cn=a" + "a" * MAX_CONTAINER_LENGTH + "']",
+    ],
+)
+def test_other_container_like_values_are_shown_unchanged(value):
+    text = value_text(value)
+    assert text.plain == value
+    assert text.spans == []

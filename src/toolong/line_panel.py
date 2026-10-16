@@ -1,4 +1,5 @@
 from __future__ import annotations
+import ast
 from datetime import datetime
 import json
 import re
@@ -15,9 +16,12 @@ from textual.widget import Widget
 from textual.widgets import Label, Static
 
 from toolong.lancelog import HEADER_KEYS, LancelogRecord, parse_lancelog
-from toolong.ldap_dn import parse_dn
+from toolong.ldap_dn import Ava, parse_dn
 
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+# Longer list, tuple, set or dict values aren't parsed, so a huge value can't slow down the line details.
+MAX_CONTAINER_LENGTH = 16384
+_STRING_QUOTE = re.compile("[A-Za-z]*('''|\"\"\"|'|\")")
 
 
 def fields_table(record: LancelogRecord) -> Table:
@@ -34,10 +38,19 @@ def fields_table(record: LancelogRecord) -> Table:
 
 
 def value_text(value: str) -> Text:
-    """Show a DN with decoded values, and colored separators to tell them from value characters."""
+    """Show DNs, alone or in a Python list, tuple, set or dict literal, with decoded values."""
     rdns = parse_dn(value)
-    if rdns is None:
-        return Text(value)
+    if rdns is not None:
+        return dn_text(rdns)
+    if value.startswith(("[", "(", "{")) and "=" in value:
+        text = _container_text(value)
+        if text is not None:
+            return text
+    return Text(value)
+
+
+def dn_text(rdns: list[list[Ava]]) -> Text:
+    """Decoded values, with colored separators to tell them from value characters."""
     text = Text()
     for rdn_index, rdn in enumerate(rdns):
         if rdn_index:
@@ -48,6 +61,39 @@ def value_text(value: str) -> Text:
             text.append(ava.type, "repr.attrib_name")
             text.append("=", "repr.attrib_equal")
             _append_visibly(text, ava.value)
+    return text
+
+
+def _container_text(value: str) -> Text | None:
+    """Show a Python literal as written, with its DN strings decoded, or return None if it has none."""
+    if len(value) > MAX_CONTAINER_LENGTH or "\n" in value:
+        return None
+    try:
+        source = value.encode("utf-8")
+        tree = ast.parse(value, mode="eval")
+        ast.literal_eval(tree)
+    except (SyntaxError, ValueError, TypeError, MemoryError, RecursionError, UnicodeEncodeError):
+        return None
+    dns: list[tuple[int, int, list[list[Ava]]]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.end_col_offset is not None:
+            rdns = parse_dn(node.value)
+            if rdns is not None:
+                # Column offsets count UTF-8 bytes.
+                dns.append((node.col_offset, node.end_col_offset, rdns))
+    if not dns:
+        return None
+    text = Text()
+    position = 0
+    for start, end, rdns in sorted(dns, key=lambda dn: dn[0]):
+        quote = _STRING_QUOTE.match(source[start:end].decode("utf-8"))
+        assert quote is not None
+        text.append(source[position:start].decode("utf-8"))
+        text.append(quote[0])
+        text.append_text(dn_text(rdns))
+        text.append(quote[1])
+        position = end
+    text.append(source[position:].decode("utf-8"))
     return text
 
 
