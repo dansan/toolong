@@ -1,6 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 import json
+import re
 
 from rich import box
 from rich.json import JSON
@@ -14,6 +15,9 @@ from textual.widget import Widget
 from textual.widgets import Label, Static
 
 from toolong.lancelog import HEADER_KEYS, LancelogRecord, parse_lancelog
+from toolong.ldap_dn import parse_dn
+
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
 
 
 def fields_table(record: LancelogRecord) -> Table:
@@ -25,8 +29,36 @@ def fields_table(record: LancelogRecord) -> Table:
     for key in HEADER_KEYS:
         table.add_row(key, Text(record.fields[key]))
     for pair in record.pairs:
-        table.add_row(Text(pair.key), Text(pair.value))
+        table.add_row(Text(pair.key), value_text(pair.value))
     return table
+
+
+def value_text(value: str) -> Text:
+    """Show a DN with decoded values, and colored separators to tell them from value characters."""
+    rdns = parse_dn(value)
+    if rdns is None:
+        return Text(value)
+    text = Text()
+    for rdn_index, rdn in enumerate(rdns):
+        if rdn_index:
+            text.append(",", "repr.comma")
+        for ava_index, ava in enumerate(rdn):
+            if ava_index:
+                text.append("+", "repr.comma")
+            text.append(ava.type, "repr.attrib_name")
+            text.append("=", "repr.attrib_equal")
+            _append_visibly(text, ava.value)
+    return text
+
+
+def _append_visibly(text: Text, value: str) -> None:
+    """Append `value` with control characters as dim Python escapes, such as \\n."""
+    position = 0
+    for match in _CONTROL.finditer(value):
+        text.append(value[position : match.start()])
+        text.append(repr(match[0])[1:-1], "dim")
+        position = match.end()
+    text.append(value[position:])
 
 
 class LineDisplay(Widget):

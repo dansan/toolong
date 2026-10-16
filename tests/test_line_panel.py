@@ -6,8 +6,12 @@ from rich.table import Table
 from rich.text import Text
 from textual.app import App, ComposeResult
 
+import toolong.line_panel
+from pilot_helpers import scanned_log_lines
 from toolong.lancelog import parse_lancelog
-from toolong.line_panel import LineDisplay, fields_table
+from toolong.ldap_dn import parse_dn
+from toolong.line_panel import LineDisplay, fields_table, value_text
+from toolong.ui import UI
 
 LINE = "2026-10-02T09:38:29.200+00:00 ERROR    [         -] Sync failed.\t| gitlab_project_id=211"
 
@@ -89,3 +93,77 @@ def test_line_display_splits_repr_newlines_in_lancelog_messages():
             assert len(app.query(".fields")) == 1
 
     asyncio.run(scenario())
+
+
+DN_LINE = "2026-10-15T05:05:20.501296+02:00    DEBUG [         -] bind\t| " + r'dn="ou=foo\\3cbar\\3e \\2b 1,dc=cerbos,dc=dev"'
+
+
+def styles_at(text: Text, index: int) -> list[str]:
+    return [str(span.style) for span in text.spans if span.start <= index < span.end]
+
+
+def test_dn_values_are_shown_decoded():
+    assert value_text(r"ou=foo\3cbar\3e \2b 1,dc=cerbos,dc=dev").plain == "ou=foo<bar> + 1,dc=cerbos,dc=dev"
+
+
+def test_dn_separators_are_styled_and_value_characters_are_not():
+    text = value_text(r"ou=a\2bb+cn=c\2cd,dc=x")
+    plain = text.plain
+    assert plain == "ou=a+b+cn=c,d,dc=x"
+    assert styles_at(text, plain.index("=")) == ["repr.attrib_equal"]
+    assert styles_at(text, plain.index("+b")) == []
+    assert styles_at(text, plain.index("+cn")) == ["repr.comma"]
+    assert styles_at(text, plain.index(",d,")) == []
+    assert styles_at(text, plain.index(",dc")) == ["repr.comma"]
+    assert styles_at(text, plain.index("cn")) == ["repr.attrib_name"]
+
+
+def test_control_characters_in_dn_values_are_shown_as_dim_escapes():
+    text = value_text(r"cn=a\0ab,dc=x")
+    assert text.plain == "cn=a\\nb,dc=x"
+    assert styles_at(text, 4) == ["dim"]
+
+
+def test_other_values_are_shown_unchanged():
+    for value in ["(uid=a\\2ab)", "0.003416", 'Traceback:\n  x = "a\\b"', "cn=a\\3"]:
+        text = value_text(value)
+        assert text.plain == value
+        assert text.spans == []
+
+
+def test_fields_table_shows_dns_decoded():
+    record = parse_lancelog(DN_LINE)
+    assert record is not None
+    assert "ou=foo<bar> + 1,dc=cerbos,dc=dev" in render(fields_table(record))
+
+
+def test_dns_are_detected_only_while_the_line_details_are_open(tmp_path, monkeypatch):
+    path = tmp_path / "app.log"
+    path.write_text(DN_LINE + "\n")
+    checked: list[str] = []
+
+    def counting_parse_dn(value: str):
+        checked.append(value)
+        return parse_dn(value)
+
+    monkeypatch.setattr(toolong.line_panel, "parse_dn", counting_parse_dn)
+
+    async def scenario() -> None:
+        app = UI([str(path)])
+        async with app.run_test(size=(160, 40)) as pilot:
+            log_lines = await scanned_log_lines(pilot)
+            log_lines.focus()
+            await pilot.press("g", "enter")
+            await pilot.pause()
+            assert checked == []
+            await pilot.press("enter")
+            await pilot.pause()
+            assert len(app.query(".fields")) == 1
+            assert checked == [r"ou=foo\3cbar\3e \2b 1,dc=cerbos,dc=dev"]
+
+    asyncio.run(scenario())
+
+
+def test_single_attribute_values_keep_their_text():
+    assert value_text("objectClass=sambaDomain").plain == "objectClass=sambaDomain"
+
